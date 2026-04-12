@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>預算 Lite</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* --- 這裡開始是樣式設計 (CSS) --- */
+        :root {
+            --bg-color: #FDFBF7;        /* 奶油底色 */
+            --card-bg: #FFFFFF;         /* 卡片白 */
+            --primary: #D4C5A9;         /* 拿鐵金/米色 */
+            --accent: #E6C2BF;          /* 柔粉色 */
+            --text-main: #5D5C58;       /* 深灰棕 */
+            --text-light: #8C8A85;      /* 淺灰 */
+            --income: #8FB8A6;          /* 莫蘭迪綠 */
+            --expense: #D98C8C;         /* 莫蘭迪紅 */
+            --radius: 16px;
+            --shadow: 0 4px 12px rgba(93, 92, 88, 0.05);
+        }
+
+        * { box-sizing: border-box; font-family: 'Nunito', 'Microsoft JhengHei', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        html { font-size: 14px; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0; padding: 0; 
+            height: 100vh; 
+            height: 100dvh; 
+            display: flex; flex-direction: column; overflow: hidden;
+            overscroll-behavior-y: none; /* 新增：防止手機瀏覽器下拉觸發網頁重新整理 */
+        }
+
+       /* Header */
+        .app-header {
+            padding: 8px 12px; background: var(--card-bg); /* 上下左右留白再縮小 */
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03); z-index: 10;
+        }
+        .logo-area { display: flex; align-items: center; gap: 8px; }
+        .app-icon { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .app-header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
+        .date-controls { display: flex; align-items: center; gap: 5px; }
+        .icon-btn { border: none; background: none; font-size: 1.1rem; color: var(--text-main); cursor: pointer; padding: 5px; }
+        .text-btn { border: 1px solid var(--primary); background: transparent; border-radius: 20px; color: var(--text-main); font-size: 0.8rem; padding: 4px 10px; cursor: pointer; }
+        #monthPicker { border: none; background: transparent; font-size: 1rem; color: var(--text-main); font-weight: bold; width: 135px; }
+
+        /* Main Content */
+        main { flex: 1; overflow-y: auto; padding: 15px 12px; padding-bottom: 80px; position: relative; } /* 縮小左右 padding 至 12px */
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .summary-card {
+            background: var(--card-bg); border-radius: 12px; padding: 15px 10px; /* 減少卡片左右內距 */
+            display: flex; justify-content: space-around; box-shadow: var(--shadow);
+            margin-bottom: 15px; border: 1px solid #F5F0E6;
+        }
+        .balance-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.9rem; }
+        .balance-item span:last-child { font-weight: 700; font-size: 1.1rem; }
+        .balance-item.income span:last-child { color: var(--income); }
+        .balance-item.expense span:last-child { color: var(--expense); }
+        .balance-item.debt span:last-child { color: var(--expense); }
+        .divider { width: 1px; background: #EEE; }
+
+        /* Lists */
+        .category-section h3 { font-size: 1rem; margin-bottom: 8px; color: var(--text-light); }
+        .budget-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .budget-item {
+            background: var(--card-bg); padding: 12px 10px; border-radius: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-left: 4px solid var(--primary);
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .budget-item:active { transform: scale(0.98); }
+        .add-item-btn {
+            width: 100%; padding: 10px; border: 2px dashed var(--primary);
+            background: transparent; color: var(--text-light); border-radius: 10px;
+            cursor: pointer; font-size: 0.9rem;
+        }
+
+        /* Calendar */
+        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.9rem; color: var(--text-light); margin-bottom: 10px; }
+        .red-day { color: var(--expense); }
+        .cal-day.today { border: 2px solid var(--primary); }
+        .day-dots { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; }
+        .dot { width: 5px; height: 5px; border-radius: 50%; }
+        .dot.inc { background: var(--income); }
+        .dot.exp { background: var(--expense); }
+
+        .week-row { background: var(--card-bg); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; font-size: 0.9rem; box-shadow: var(--shadow); margin-bottom: 10px;}
+
+        /* Debts */
+        .debt-item {
+            background: var(--card-bg); padding: 10px 12px; border-radius: 10px; /* 縮小內距 */
+            margin-bottom: 8px; box-shadow: var(--shadow);
+        }
+        .debt-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 3px; }
+        .debt-meta { font-size: 0.8rem; color: var(--text-light); display: flex; justify-content: space-between; }
+        .floating-add-btn {
+            position: fixed; bottom: 85px; right: 20px; /* 改為 fixed 避免亂跑，並調整位置 */
+            width: 42px; height: 42px; border-radius: 50%; /* 按鈕再稍微縮小 */
+            background: var(--text-main); color: #fff;
+            border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            z-index: 40;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed; bottom: 0; 
+            left: 0; width: 100%; /* 恢復全寬 */
+            background: #fff; padding: 10px 0 20px 0;
+            display: flex; justify-content: space-around;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
+            z-index: 50;
+        }
+        .nav-btn { border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #CCC; cursor: pointer; }
+        .nav-btn.active { color: var(--text-main); }
+        .nav-btn i { font-size: 1.2rem; }
+        .nav-btn span { font-size: 0.7rem; }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; top: 0; 
+            left: 0; width: 100%; /* 灰底填滿全螢幕 */
+            height: 100%;
+            background: rgba(93, 92, 88, 0.4); z-index: 100;
+            justify-content: center; align-items: flex-start; 
+            padding-top: 8vh; 
+        }
+        .modal-content {
+            background: #fff; width: 85%; max-width: 450px; /* 寬度限制在白框 */
+            padding: 20px;
+            border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-height: 85vh; overflow-y: auto; 
+        }
+        .modal input, .modal select {
+            width: 100%; padding: 12px; margin: 8px 0 15px 0;
+            border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA;
+        }
+        .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .modal-actions button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-save { background: var(--text-main); color: #fff; }
+        .btn-cancel { background: #EEE; color: var(--text-light); }
+        .btn-delete { background: var(--expense); color: #fff; }
+        
+        .tab-switch { display: flex; background: #F0F0F0; border-radius: 8px; padding: 3px; margin-bottom: 15px; }
+        .tab-opt { flex: 1; border: none; background: transparent; padding: 8px; border-radius: 6px; cursor: pointer; color: var(--text-light); }
+        .tab-opt.active { background: #fff; color: var(--text-main); }
+        
+        .daily-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EEE; font-size: 0.9rem; }
+        .del-x { color: var(--expense); cursor: pointer; margin-left: 10px; }
+
+        /* --- 新增：智能鍵盤樣式 --- */
+        #custom-numpad {
+            display: none; position: fixed; bottom: 0; 
+            left: 50%; transform: translateX(-50%); /* 強制居中對齊 */
+            width: 100%; max-width: 450px; /* 限制寬度與 App 一致 */
+            background: #FDFBF7; padding: 10px; z-index: 200;
+            grid-template-columns: repeat(4, 1fr); gap: 8px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            border-top-left-radius: 20px; border-top-right-radius: 20px;
+            height: 30vh; 
+        }
+        .num-btn {
+            background: #FFF; border: none; border-radius: 12px;
+            font-size: 1.2rem; font-weight: bold; color: var(--text-main);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .num-btn:active { background: #EEE; transform: scale(0.95); }
+        .num-op { color: var(--primary); background: #FAF8F2; }
+        .num-confirm { background: var(--text-main); color: #FFF; }
+        .num-del { color: var(--expense); }
+
+        /* 條列式收支 (金額直顯) */
+        .day-list {
+            display: flex; flex-direction: column; gap: 2px; 
+            overflow-y: hidden; /* 多出來的記帳項目直接藏起來 */
+            flex: 1; /* 剛好填滿格子剩下的空間 */
+        }
+        .txn-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.65rem; padding: 1px 2px; border-radius: 3px;
+        }
+        
+        /* 針對「項目名稱」進行淡出處理 */
+        .txn-row span:first-child {
+            flex: 1; 
+            min-width: 0; 
+            white-space: nowrap; 
+            overflow: hidden;
+            margin-right: 4px; 
+            
+            -webkit-mask-image: linear-gradient(to right, #000 65%, transparent 100%);
+            mask-image: linear-gradient(to right, #000 65%, transparent 100%);
+        }
+        
+        /* 針對「金額」保護，絕對不換行、不被擠壓 */
+        .txn-row span:last-child {
+            white-space: nowrap;
+            flex-shrink: 0; 
+        }
+
+        .txn-row.inc { color: #2E8B57; background: #E8F5E9; } 
+        .txn-row.exp { color: #D32F2F; background: #FFEBEE; }
+
+        /* 週統計橫條 */
+        .week-summary-row {
+            grid-column: 1 / -1; 
+            background: transparent;
+            border: none;
+            padding: 5px 5px; margin: 0 0 10px 0;
+            display: flex; justify-content: flex-end; gap: 5px;
+            font-size: 0.75rem; color: var(--text-main);
+        }
+        .summary-val.inc { color: #2E8B57; font-weight: bold; }
+        .summary-val.exp { color: #D32F2F; font-weight: bold; }
+        .summary-val.bal { color: var(--text-main); font-weight: 900; }
+
+        /* 針對唯讀輸入框 (啟用智能鍵盤) 的樣式優化 */
+        input[readonly].numpad-target {
+            background-color: #FFF; 
+            cursor: pointer;
+            color: var(--text-main);
+            font-weight: bold;
+        }
+        input[readonly].numpad-target:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        /* --- 修改：行事曆樣式優化 --- */
+        .calendar-grid { 
+            display: grid;  
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 4px; 
+            padding-bottom: 15px;
+        }
+        
+        .cal-day {
+            height: 85px; 
+            background: var(--card-bg);
+            padding: 2px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            border: 1px solid #F0F0F0;
+            cursor: pointer; 
+            overflow: hidden; 
+        }
+
+        .cal-day.today { border: 2px solid var(--primary); }
+
+        /* 假日與日期顯示 */
+        .day-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            width: 100%; margin-bottom: 2px; 
+            flex-shrink: 0; 
+        }
+        .day-num { margin-left: 2px; font-size: 0.8rem; font-weight: bold; z-index: 2; }
+        .holiday-name {
+            font-size: 0.55rem; color: #FFF; 
+            background: var(--expense); padding: 1px 3px; border-radius: 4px;
+            white-space: nowrap; transform: scale(0.9); transform-origin: right top; 
+        }
+        .cal-day.holiday { background-color: #FFF5F5; }
+
+    </style>
+</head>
+<body>
+
+    <div id="authScreen" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: #fff; padding: 30px 20px; border-radius: 20px; box-shadow: var(--shadow); width: 100%; max-width: 400px; text-align: center;">
+            <h2 style="margin-top: 0; color: var(--text-main);">預算 Lite</h2>
+            <p style="color: var(--text-light); font-size: 0.9rem; margin-bottom: 20px;">請登入或註冊以管理您的專屬預算</p>
+            
+            <form onsubmit="handleLogin(); return false;" style="width: 100%;">
+                <input type="email" id="authEmail" autocomplete="username" placeholder="信箱 (Email)" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA;">
+                <input type="password" id="authPassword" autocomplete="current-password" placeholder="密碼 (至少 6 位數)" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA;">
+                
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" style="flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: var(--text-main); color: #fff;">登入</button>
+                    <button type="button" onclick="handleRegister()" style="flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: var(--primary); color: var(--text-main);">註冊</button>
+                </div>
+            </form>
+            <p id="authErrorMsg" style="color: var(--expense); font-size: 0.85rem; margin-top: 15px; min-height: 20px;"></p>
+        </div>
+    </div>
+
+    <header class="app-header">
+        <div class="logo-area" onclick="handleLogout()" style="cursor: pointer;" title="點擊登出">
+            <img src="icon.png" alt="Logo" class="app-icon" onerror="this.style.display='none'">
+            <h1>預算規劃 <i class="fas fa-sign-out-alt" style="font-size:0.8rem; color:var(--text-light); margin-left: 4px;"></i></h1>
+        </div>
+        <div class="date-controls">
+            <button id="prevMonth" class="icon-btn"><i class="fas fa-chevron-left"></i></button>
+            <div style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+                <select id="yearPicker" style="border:none; background:transparent; font-size:1.1rem; font-weight:bold; color:var(--text-main); appearance:none; outline:none; cursor:pointer; padding-right:15px;"></select>
+                <span style="position:absolute; right:0; pointer-events:none; font-size:0.8rem; color:var(--text-light);">▾</span>
+            </div>
+            <div style="position: relative; display: inline-flex; align-items: center; margin-right:5px; cursor: pointer;">
+                <select id="monthPickerSelect" style="border:none; background:transparent; font-size:1.1rem; font-weight:bold; color:var(--text-main); appearance:none; outline:none; cursor:pointer; padding-right:15px;"></select>
+                <span style="position:absolute; right:0; pointer-events:none; font-size:0.8rem; color:var(--text-light);">▾</span>
+            </div>
+            <button id="nextMonth" class="icon-btn"><i class="fas fa-chevron-right"></i></button>
+            <button id="resetToToday" class="text-btn">本月</button>
+        </div>
+    </header>
+
+    <main id="mainContainer">
+        
+        <section id="page-monthly" class="page active">
+            <div class="summary-card">
+                <div class="balance-item income"><span>本月收入</span><span id="monthIncomeTotal">0</span></div>
+                <div class="divider"></div>
+                <div class="balance-item expense"><span>本月支出</span><span id="monthExpenseTotal">0</span></div>
+                <div class="divider"></div>
+                <div class="balance-item balance"><span>本月結餘</span><span id="monthBalance">0</span></div>
+                <div class="divider"></div>
+                <div class="balance-item debt"><span>總欠款</span><span id="monthDebtTotal">0</span></div>
+            </div>
+
+            <div class="category-section">
+                <h3><i class="fas fa-coins"></i> 固定收入</h3>
+                <div id="incomeList" class="budget-list"></div>
+                <button class="add-item-btn" onclick="openBudgetModal('income')">+ 新增收入項目</button>
+            </div>
+
+            <div class="category-section">
+                <h3><i class="fas fa-receipt"></i> 固定支出</h3>
+                <div id="expenseList" class="budget-list"></div>
+                <button class="add-item-btn" onclick="openBudgetModal('expense')">+ 新增支出項目</button>
+            </div>
+        </section>
+
+        <section id="page-weekly" class="page">
+            <div class="calendar-header">
+                <div class="week-days">
+                    <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="red-day">六</div><div class="red-day">日</div>
+                </div>
+            </div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+            <div class="weekly-summary-container" style="margin-top:20px;">
+                <h3>本月週統計</h3>
+                <div id="weeklySummaryList" class="summary-list"></div>
+            </div>
+        </section>
+
+        <section id="page-debt" class="page">
+            <div class="filter-bar" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+                <select id="debtFilter" onchange="renderDebts()" style="padding:8px; border-radius:8px; border:1px solid #eee;">
+                    <option value="all">顯示全部欠款</option>
+                </select>
+                <div class="debt-total-display" style="font-weight:bold; font-size:0.9rem;">總欠款: <span id="totalDebtAmount" style="color:var(--expense)">0</span></div>
+            </div>
+            <div id="debtList" class="debt-list"></div>
+            <button class="floating-add-btn" onclick="document.getElementById('debtActionModal').style.display='flex'"><i class="fas fa-plus"></i></button>
+        </section>
+
+    </main>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" data-target="page-monthly"><i class="fas fa-wallet"></i><span>月預算</span></button>
+        <button class="nav-btn" data-target="page-weekly"><i class="far fa-calendar-alt"></i><span>行事曆</span></button>
+        <button class="nav-btn" data-target="page-debt"><i class="fas fa-hand-holding-usd"></i><span>欠款</span></button>
+    </nav>
+
+    <div id="budgetModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="budgetModalTitle" style="margin: 0;">新增項目</h3>
+                <i class="fas fa-times" style="font-size: 1.5rem; color: var(--expense); cursor: pointer;" onclick="closeModal('budgetModal')"></i>
+            </div>
+            <input type="hidden" id="editId"><input type="hidden" id="editType">
+            <label>名稱</label><input type="text" id="itemName" placeholder="例如: 薪資">
+
+            <div id="budgetRepayArea" style="display:none;">
+                <label>債權人</label>
+                <input type="text" id="budgetRepayCreditor" list="budgetCreditorList" placeholder="選擇或輸入債權人...">
+                <datalist id="budgetCreditorList"></datalist>
+            </div>
+            <label>金額</label>
+            <input type="text" id="itemAmount" class="numpad-target" placeholder="點擊輸入金額" readonly onclick="openNumpad(this)">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('budgetModal')">取消</button>
+                <button class="btn-delete" id="btnDeleteBudget" style="display:none;">刪除</button>
+                <button class="btn-save" onclick="saveBudgetItem()">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="calendarModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="calModalTitle" style="margin: 0;">日期</h3>
+                <span style="font-size: 1.5rem; color: var(--expense); cursor: pointer; font-weight: bold; padding: 0 10px;" onclick="closeModal('calendarModal')">✕</span>
+            </div>
+            <input type="date" id="selectedDate" style="width: 100%; padding: 12px; margin: 8px 0 15px 0; border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA;">
+            <input type="hidden" id="editDailyId">
+            <input type="hidden" id="editOriginalDate">
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 0.9rem; color: var(--text-light);">重複週期</label>
+                    <select id="calFrequency">
+                        <option value="none">不重複</option>
+                        <option value="monthly">每月重複</option>
+                        <option value="weekly">每週重複</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.9rem; color: var(--text-light);">結束於 (選填)</label>
+                    <input type="date" id="calEndDate">
+                </div>
+            </div>
+            <div class="tab-switch">
+                <button class="tab-opt active" onclick="setCalType('expense', this)">支出</button>
+                <button class="tab-opt" onclick="setCalType('income', this)">收入</button>
+            </div>
+            <input type="hidden" id="calType" value="expense">
+            <div id="calItemArea">
+                <label>項目</label>
+                <select id="calItemName" onchange="window.checkRepayDisplay()"></select>
+            </div>
+            <div id="calRepayArea" style="display:none;">
+                <label>債權人</label>
+                <input type="text" id="calRepayCreditor" list="calCreditorList" placeholder="選擇或輸入債權人...">
+                <datalist id="calCreditorList"></datalist>
+            </div>
+
+            <label>金額</label>
+            <input type="text" id="calItemAmount" class="numpad-target" placeholder="點擊輸入金額" readonly onclick="openNumpad(this)">
+            
+            <label>備註</label>
+            <input type="text" id="calItemNote" placeholder="選填備註...">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('calendarModal')">取消</button>
+                <button class="btn-save" onclick="addDailyRecord()">新增</button>
+            </div>
+            <div class="daily-records-list" id="dailyRecordsList" style="margin-top:15px; max-height:150px; overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <div id="debtActionModal" class="modal">
+        <div class="modal-content" style="text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top: 0; margin-bottom: 20px; color: var(--text-main);">選擇操作</h3>
+            <button onclick="closeModal('debtActionModal'); openDebtModal();" style="width: 100%; padding: 15px; margin-bottom: 12px; border: none; border-radius: 12px; background: var(--expense); color: #fff; font-size: 1.1rem; font-weight: bold; cursor: pointer;">新增欠款</button>
+            <button onclick="closeModal('debtActionModal'); openGlobalRepayModal();" style="width: 100%; padding: 15px; margin-bottom: 15px; border: none; border-radius: 12px; background: var(--income); color: #fff; font-size: 1.1rem; font-weight: bold; cursor: pointer;">新增還款</button>
+            <button onclick="closeModal('debtActionModal')" style="width: 100%; padding: 12px; border: none; border-radius: 12px; background: #EEE; color: var(--text-main); font-size: 1rem; font-weight: bold; cursor: pointer;">取消</button>
+        </div>
+    </div>
+
+    <div id="debtModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="debtModalTitle" style="margin: 0;">新增欠款</h3>
+                <i class="fas fa-times" style="font-size: 1.5rem; color: var(--expense); cursor: pointer;" onclick="closeModal('debtModal')"></i>
+            </div>
+            <input type="hidden" id="editDebtIndex">
+            <label>債權人</label><input type="text" id="debtPerson" placeholder="輸入名字">
+            <label>日期</label><input type="date" id="debtDate">
+            <label>名目</label><input type="text" id="debtReason" placeholder="例如: 晚餐">
+            
+            <label>金額</label>
+            <input type="text" id="debtAmount" class="numpad-target" placeholder="點擊輸入金額" readonly onclick="openNumpad(this)">
+            
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('debtModal')">取消</button>
+                <button class="btn-save" onclick="saveDebt()">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="repayModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;">新增還款</h3>
+                <i class="fas fa-times" style="font-size: 1.5rem; color: var(--expense); cursor: pointer;" onclick="closeModal('repayModal')"></i>
+            </div>
+            <input type="hidden" id="repayIndex">
+            
+            <label>債權人</label>
+            <select id="repayPersonSelect" style="display:none;"></select>
+            <input type="text" id="repayPerson" readonly style="background-color: #F5F5F5; color: var(--text-light);">
+            
+            <label>日期</label>
+            <input type="date" id="repayDate">
+            
+            <label>名目</label>
+            <input type="text" id="repayReason" placeholder="例如: 轉帳還款">
+            
+            <label>還款金額</label>
+            <input type="text" id="repayAmount" class="numpad-target" placeholder="點擊輸入金額" readonly onclick="openNumpad(this)">
+            
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('repayModal')">取消</button>
+                <button class="btn-save" onclick="confirmRepayment()">確認還款</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-numpad">
+        <button class="num-btn num-op" onclick="numpadInput('/')">÷</button>
+        <button class="num-btn num-op" onclick="numpadInput('*')">×</button>
+        <button class="num-btn num-op" onclick="numpadInput('-')">-</button>
+        <button class="num-btn num-op" onclick="numpadInput('+')">+</button>
+    
+        <button class="num-btn" onclick="numpadInput('7')">7</button>
+        <button class="num-btn" onclick="numpadInput('8')">8</button>
+        <button class="num-btn" onclick="numpadInput('9')">9</button>
+        <button class="num-btn num-op num-del" onclick="numpadInput('DEL')">⌫</button>
+        
+        <button class="num-btn" onclick="numpadInput('4')">4</button>
+        <button class="num-btn" onclick="numpadInput('5')">5</button>
+        <button class="num-btn" onclick="numpadInput('6')">6</button>
+        <button class="num-btn num-op" onclick="numpadInput('AC')">AC</button>
+        
+        <button class="num-btn" onclick="numpadInput('1')">1</button>
+        <button class="num-btn" onclick="numpadInput('2')">2</button>
+        <button class="num-btn" onclick="numpadInput('3')">3</button>
+        <button class="num-btn num-op" onclick="numpadInput('\n')">↵</button> 
+        
+        <button class="num-btn" onclick="numpadInput('00')">00</button>
+        <button class="num-btn" onclick="numpadInput('0')">0</button>
+        <button class="num-btn" onclick="numpadInput('.')">.</button>
+        <button class="num-btn num-confirm" onclick="closeNumpad()">✓</button> 
+    </div>
+
+    <script type="module">
+        // 1. 正確引入 Firebase SDK (使用網頁版 CDN 路徑)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        // 引入 Authentication 相關模組
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // 2. 您的 Firebase 設定 (保留原本正確的資料)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBpHVGM3AkcoLL2Xu_Xm5psdmrp9UbPSmA",
+            authDomain: "cozybudget-3d8f2.firebaseapp.com",
+            databaseURL: "https://cozybudget-3d8f2-default-rtdb.firebaseio.com",
+            projectId: "cozybudget-3d8f2",
+            storageBucket: "cozybudget-3d8f2.firebasestorage.app",
+            messagingSenderId: "738561092086",
+            appId: "1:738561092086:web:012a781e638cc9674c7fd7",
+            measurementId: "G-WQCJPX60V3"
+        };
+
+        // 3. 初始化 Firebase (只做一次)
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app); // 新增：初始化 Auth
+
+        // --- 全域變數 ---
+        let currentDate = new Date();
+        let currentYear = currentDate.getFullYear();
+        let currentMonth = currentDate.getMonth() + 1;
+        let data = { budget: {}, daily: {}, debts: [] };
+        let activeInput = null;
+        let currentUserId = null; // 新增：儲存當前登入使用者的 UID
+
+        // 預設分類
+        window.defaultCategories = {
+            income: ["薪資", "斜槓", "補助", "借款"],
+            expense: ["房租", "水費", "電費", "家用", "信用卡", "還款", "蝦皮分期", "樂分期"]
+        };
+
+        // 假期表
+        window.holidays = {
+            "2026-01-01": "元旦", "2026-02-15": "小年夜", "2026-02-16": "除夕", "2026-02-17": "春節",
+            "2026-02-18": "初二", "2026-02-19": "初三", "2026-02-20": "初四", "2026-02-28": "和平",
+            "2026-04-03": "兒童", "2026-04-04": "清明", "2026-06-19": "端午", "2026-09-25": "中秋",
+            "2026-10-09": "國慶補", "2026-10-10": "國慶"
+        };
+        
+        // --- 新增：Firebase 帳號身分監聽邏輯 ---
+        window.checkLogin = function() {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // 已登入：隱藏登入畫面，設定 UID，並開始同步資料
+                    document.getElementById('authScreen').style.display = 'none';
+                    currentUserId = user.uid;
+                    initRealtimeSync();
+                } else {
+                    // 未登入：顯示登入畫面，清空資料
+                    document.getElementById('authScreen').style.display = 'flex';
+                    currentUserId = null;
+                    data = { budget: {}, daily: {}, debts: [] };
+                    renderAll();
+                }
+            });
+        }
+
+        // --- 新增：登入 / 註冊 / 登出 功能 ---
+        window.handleLogin = function() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const errorMsg = document.getElementById('authErrorMsg');
+            
+            if(!email || !password) { errorMsg.innerText = "請輸入信箱與密碼"; return; }
+            errorMsg.innerText = "登入中...";
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => { errorMsg.innerText = ""; })
+                .catch((error) => { errorMsg.innerText = "登入失敗：" + error.message; });
+        }
+
+        window.handleRegister = function() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const errorMsg = document.getElementById('authErrorMsg');
+            
+            if(!email || !password) { errorMsg.innerText = "請輸入信箱與密碼"; return; }
+            errorMsg.innerText = "註冊中...";
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    errorMsg.innerText = "";
+                    // 可以在這裡做新用戶的初始資料設定(若需要)
+                })
+                .catch((error) => { errorMsg.innerText = "註冊失敗：" + error.message; });
+        }
+
+        window.handleLogout = function() {
+            if(confirm("確定要登出嗎？")) {
+                signOut(auth).then(() => {
+                    document.getElementById('authEmail').value = '';
+                    document.getElementById('authPassword').value = '';
+                }).catch((error) => { alert("登出失敗"); });
+            }
+        }
+
+        function initRealtimeSync() {
+            if (!currentUserId) return;
+            const dataRef = ref(db, 'users/' + currentUserId); // 修改：使用 currentUserId
+            
+            // 監聽數據變化
+            onValue(dataRef, (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    data = val; // 更新本地數據
+                    // 確保資料結構完整
+                    if(!data.budget) data.budget = {};
+                    if(!data.daily) data.daily = {};
+                    if(!data.debts) data.debts = [];
+                    console.log("雲端資料已同步更新");
+                } else {
+                    console.log("新用戶，無雲端資料");
+                }
+                renderAll(); 
+            });
+        }
+
+        window.saveData = function() {
+            if (!currentUserId) return;
+            // 寫入 Firebase
+            set(ref(db, 'users/' + currentUserId), data) // 修改：使用 currentUserId
+                .then(() => {
+                    console.log("儲存成功");
+                })
+                .catch((error) => {
+                    alert("儲存失敗: " + error.message);
+                });
+        }
+
+        // --- 介面渲染與操作邏輯 ---
+
+        document.addEventListener("DOMContentLoaded", () => {
+            checkLogin(); // 檢查登入
+            initDateControls();
+            setupNavigation();
+            
+        });
+        
+        window.setupNavigation = function() {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(btn.dataset.target).classList.add('active');
+                    closeNumpad();
+                });
+            });
+        }
+
+        // 監聽預算名稱，若包含「還款/借款」則顯示債權人選單
+        document.getElementById('itemName').addEventListener('input', function(e) {
+            const repayArea = document.getElementById('budgetRepayArea');
+            const sel = document.getElementById('budgetCreditorList');
+            const type = document.getElementById('editType').value;
+            const val = e.target.value;
+            
+            if ((val.includes('還款') && type === 'expense') || (val.includes('借款') && type === 'income')) {
+                repayArea.style.display = 'block';
+                sel.innerHTML = '';
+                [...new Set(data.debts.map(d => d.person))].forEach(p => {
+                    sel.innerHTML += `<option value="${p}">${p}</option>`;
+                });
+            } else {
+                repayArea.style.display = 'none';
+            }
+        });
+
+        window.initDateControls = function() {
+            const yearPicker = document.getElementById('yearPicker');
+            const monthPicker = document.getElementById('monthPickerSelect');
+            
+            for(let y = currentYear - 5; y <= currentYear + 5; y++) {
+                let opt = document.createElement('option');
+                opt.value = y; opt.text = y + '年';
+                yearPicker.appendChild(opt);
+            }
+            for(let m = 1; m <= 12; m++) {
+                let opt = document.createElement('option');
+                opt.value = m; opt.text = m + '月';
+                monthPicker.appendChild(opt);
+            }
+            
+            yearPicker.value = currentYear;
+            monthPicker.value = currentMonth;
+
+            yearPicker.addEventListener('change', (e) => {
+                currentYear = parseInt(e.target.value); renderAll();
+            });
+            monthPicker.addEventListener('change', (e) => {
+                currentMonth = parseInt(e.target.value); renderAll();
+            });
+
+            document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+            document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+            document.getElementById('resetToToday').addEventListener('click', () => {
+                const now = new Date();
+                currentYear = now.getFullYear(); currentMonth = now.getMonth() + 1;
+                yearPicker.value = currentYear; monthPicker.value = currentMonth;
+                renderAll();
+            });
+        }
+
+        window.changeMonth = function(delta) {
+            let newDate = new Date(currentYear, currentMonth - 1 + delta, 1);
+            currentYear = newDate.getFullYear(); currentMonth = newDate.getMonth() + 1;
+            document.getElementById('yearPicker').value = currentYear;
+            document.getElementById('monthPickerSelect').value = currentMonth;
+            renderAll();
+        }
+
+        // 加入計時器變數來控制渲染頻率
+        let renderTimer = null;
+
+        window.renderAll = function() {
+            // 防抖機制 (Debounce)：如果 50 毫秒內被重複呼叫，就取消前一次，只執行最後一次
+            if (renderTimer) clearTimeout(renderTimer);
+            
+            renderTimer = setTimeout(() => {
+                renderMonthlyBudget();
+                renderCalendar();
+                renderDebts();
+            }, 50);
+        }
+
+        // --- 新增：取得特定日期的所有紀錄 (包含跨日/跨月重複項目) ---
+        window.getRecordsForDate = function(targetDateStr) {
+            let results = [];
+            // 1. 當天的原始紀錄
+            if (data.daily && data.daily[targetDateStr]) {
+                data.daily[targetDateStr].forEach((r, idx) => {
+                    results.push({...r, originalDate: targetDateStr, originalIdx: idx, isRepeat: false});
+                });
+            }
+            // 2. 過去設定的重複紀錄
+            if (data.daily) {
+                let targetDateObj = new Date(targetDateStr);
+                Object.keys(data.daily).forEach(dStr => {
+                    if (dStr < targetDateStr) {
+                        data.daily[dStr].forEach((r, idx) => {
+                            if (r.frequency && r.frequency !== 'none') {
+                                if (!r.endDate || targetDateStr <= r.endDate) {
+                                    if (r.frequency === 'monthly' && targetDateStr.substring(8,10) === dStr.substring(8,10)) {
+                                        results.push({...r, originalDate: dStr, originalIdx: idx, isRepeat: true});
+                                    } else if (r.frequency === 'weekly') {
+                                        let origDateObj = new Date(dStr);
+                                        if (targetDateObj.getDay() === origDateObj.getDay()) {
+                                            results.push({...r, originalDate: dStr, originalIdx: idx, isRepeat: true});
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            return results;
+        }
+
+        // --- 月預算邏輯 ---
+        window.renderMonthlyBudget = function() {
+            const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            if (!data.budget[currentKey]) {
+                data.budget[currentKey] = {
+                    income: window.defaultCategories.income.map((n, i) => ({ id: Date.now()+i, name: n, amount: 0 })),
+                    expense: window.defaultCategories.expense.map((n, i) => ({ id: Date.now()+100+i, name: n, amount: 0 }))
+                };
+            }
+            const monthData = data.budget[currentKey];
+            
+            let actualInc = 0, actualExp = 0;
+            let itemTotals = { income: {}, expense: {} };
+
+            // 1. 統計當月行事曆所有開銷與收入 (自動整合重複項目)
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const records = window.getRecordsForDate(dateStr);
+                records.forEach(r => {
+                    let amt = parseInt(r.amount) || 0;
+                    let t = (r.type === 'income') ? 'income' : 'expense';
+                    
+                    if (!itemTotals[t][r.item]) itemTotals[t][r.item] = 0;
+                    itemTotals[t][r.item] += amt;
+                    
+                    if (t === 'income') actualInc += amt; 
+                    else actualExp += amt;
+                });
+            }
+
+            // 2. 計算總欠款 (修正為按人合計，溢繳不抵扣他人)
+            const personTotals = {};
+            data.debts.forEach(d => {
+                if(!personTotals[d.person]) personTotals[d.person] = 0;
+                let repaid = 0;
+                if(d.repayments) d.repayments.forEach(r => repaid += (Number(r.amount) || 0));
+                personTotals[d.person] += (Number(d.amount) || 0) - repaid;
+            });
+            
+            let totalRemainingDebt = 0;
+            Object.values(personTotals).forEach(val => {
+                totalRemainingDebt += Math.max(0, val);
+            });
+
+            // 3. 顯示最上方卡片加總 (移除原本顯示的預算目標)
+            document.getElementById('monthIncomeTotal').innerText = actualInc.toLocaleString();
+            document.getElementById('monthExpenseTotal').innerText = actualExp.toLocaleString();
+            document.getElementById('monthBalance').innerText = (actualInc - actualExp).toLocaleString();
+            document.getElementById('monthDebtTotal').innerText = totalRemainingDebt.toLocaleString();
+
+            // 4. 動態渲染清單：整合固定項目與行事曆的臨時項目
+            const renderList = (arr, containerId, type) => {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                
+                let itemsToShow = new Map();
+                
+                // 先把「固定項目清單」加進來 (預設為0)
+                arr.forEach(item => {
+                    itemsToShow.set(item.name, { id: item.id, name: item.name, amount: 0 });
+                });
+                
+                // 再疊加「行事曆實際金額」，若有未建檔的臨時項目也會動態顯示
+                if (itemTotals[type]) {
+                    Object.keys(itemTotals[type]).forEach(itemName => {
+                        if (itemsToShow.has(itemName)) {
+                            itemsToShow.get(itemName).amount = itemTotals[type][itemName];
+                        } else {
+                            itemsToShow.set(itemName, { id: '', name: itemName, amount: itemTotals[type][itemName] });
+                        }
+                    });
+                }
+                
+                // 渲染出所有項目
+                Array.from(itemsToShow.values()).forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'budget-item';
+                    div.innerHTML = `<span>${item.name}</span><span style="font-weight:bold;">$${item.amount.toLocaleString()}</span>`;
+                    
+                    // 只有在固定清單中的項目才能點擊編輯
+                    if (item.id) div.onclick = () => openBudgetModal(type, item);
+                    container.appendChild(div);
+                });
+            };
+            
+            if(monthData.income) renderList(monthData.income, 'incomeList', 'income');
+            if(monthData.expense) renderList(monthData.expense, 'expenseList', 'expense');
+        }
+
+        // --- 行事曆邏輯 ---
+        window.renderCalendar = function() {
+            const grid = document.getElementById('calendarGrid');
+            const listContainer = document.getElementById('weeklySummaryList');
+            if(listContainer) listContainer.innerHTML = ''; 
+            grid.innerHTML = ''; 
+
+            const firstDayObj = new Date(currentYear, currentMonth - 1, 1);
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            let startDay = firstDayObj.getDay(); 
+            let startOffset = (startDay === 0) ? 6 : startDay - 1; 
+
+            let weekInc = 0, weekExp = 0;
+            let currentWeekGridCount = 0; 
+
+            const todayObj = new Date();
+            const localTodayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
+            // 填充空白
+            for(let i=0; i<startOffset; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-day empty';
+                empty.style.visibility = 'hidden'; 
+                grid.appendChild(empty);
+                currentWeekGridCount++;
+            }
+
+            for(let d=1; d<=daysInMonth; d++) {
+                const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dayObj = new Date(currentYear, currentMonth - 1, d);
+                const dayOfWeek = dayObj.getDay(); 
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const holidayName = window.holidays[dateStr];
+                
+                const dayDiv = document.createElement('div');
+                dayDiv.className = `cal-day ${isWeekend || holidayName ? 'holiday' : ''}`;
+                
+                if(dateStr === localTodayStr) dayDiv.classList.add('today');
+
+                let html = `
+                    <div class="day-header">
+                        <span class="day-num" style="${(isWeekend||holidayName)?'color:var(--expense)':''}">${d}</span>
+                        ${holidayName ? `<span class="holiday-name">${holidayName}</span>` : ''}
+                    </div>
+                    <div class="day-list">`;
+                
+                const dailyRecords = window.getRecordsForDate(dateStr);
+                dailyRecords.forEach(r => {
+                    const amt = parseInt(r.amount);
+                    if(r.type === 'income') weekInc += amt; else weekExp += amt;
+                    html += `<div class="txn-row ${r.type === 'income' ? 'inc' : 'exp'}">
+                                <span>${r.isRepeat ? '<i class="fas fa-sync-alt" style="font-size:0.6rem; margin-right:2px;"></i>' : ''}${r.item}</span>
+                                <span>${amt}</span>
+                             </div>`;
+                });
+                
+                html += `</div>`;
+                dayDiv.innerHTML = html;
+                dayDiv.onclick = () => openCalModal(dateStr);
+                grid.appendChild(dayDiv);
+                currentWeekGridCount++;
+
+                if (dayOfWeek === 0 || d === daysInMonth) {
+                    const summaryDiv = document.createElement('div');
+                    summaryDiv.className = 'week-summary-row';
+                    const balance = weekInc - weekExp;
+                    summaryDiv.innerHTML = `
+                        <span class="summary-val inc">收 $${weekInc.toLocaleString()}</span> ／ 
+                        <span class="summary-val exp">支 $${weekExp.toLocaleString()}</span> ／ 
+                        <span class="summary-val bal">餘 $${balance.toLocaleString()}</span>
+                    `;
+                    grid.appendChild(summaryDiv);
+                    weekInc = 0; weekExp = 0; currentWeekGridCount = 0; 
+                }
+            }
+        }
+
+        // --- 欠款邏輯 ---
+        window.renderDebts = function() {
+            const list = document.getElementById('debtList');
+            const filter = document.getElementById('debtFilter');
+            const currentFilter = filter.value;
+            list.innerHTML = '';
+            
+            // 1. 建立人名清單供過濾器使用
+            const people = [...new Set(data.debts.map(d => d.person))];
+            filter.innerHTML = '<option value="all">顯示所有對象</option>';
+            people.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p; opt.innerText = p;
+                if(p === currentFilter) opt.selected = true;
+                filter.appendChild(opt);
+            });
+
+            // 2. 按人名分組資料
+            const groupedData = {};
+            data.debts.forEach((d, index) => {
+                if (!groupedData[d.person]) {
+                    groupedData[d.person] = {
+                        totalBorrowed: 0,
+                        totalRepaid: 0,
+                        history: []
+                    };
+                }
+                const amt = Number(d.amount) || 0;
+                groupedData[d.person].totalBorrowed += amt;
+                
+                // 加入借款歷史
+                groupedData[d.person].history.push({
+                    type: 'borrow',
+                    date: d.date,
+                    reason: d.reason,
+                    amount: amt,
+                    originalIndex: index
+                });
+
+                // 加入該筆借款下的還款歷史
+                if (d.repayments) {
+                    d.repayments.forEach((r, rIdx) => {
+                        const rAmt = Number(r.amount) || 0;
+                        groupedData[d.person].totalRepaid += rAmt;
+                        groupedData[d.person].history.push({
+                            type: 'repay',
+                            date: r.date,
+                            reason: r.reason,
+                            amount: rAmt,
+                            originalIndex: index,
+                            repayIndex: rIdx
+                        });
+                    });
+                }
+            });
+
+            let globalTotalRemaining = 0;
+
+            // 3. 渲染每個人的大卡片
+            Object.keys(groupedData).forEach(personName => {
+                if (currentFilter !== 'all' && currentFilter !== personName) return;
+
+                const group = groupedData[personName];
+                const remainAmount = group.totalBorrowed - group.totalRepaid;
+                globalTotalRemaining += Math.max(0, remainAmount);
+
+                // 排序歷史紀錄（由新到舊）
+                group.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const isCleared = remainAmount <= 0;
+                const statusText = remainAmount === 0 ? '已結清' : 
+                                 (remainAmount < 0 ? `溢繳 $${Math.abs(remainAmount).toLocaleString()}` : `$${remainAmount.toLocaleString()}`);
+
+                const card = document.createElement('div');
+                card.className = 'debt-item';
+                card.innerHTML = `
+                    <div class="debt-header">
+                        <span style="font-size: 1.2rem; font-weight: bold;">${personName}</span>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.8rem; color: var(--text-light);">總借：$${group.totalBorrowed.toLocaleString()}</div>
+                            <span style="color: ${isCleared ? 'var(--income)' : 'var(--expense)'}; font-weight: bold;">
+                                ${isCleared ? '✓ ' + statusText : '待還: ' + statusText}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 0.85rem; color: var(--text-light);">往來明細 (含借/還)：</span>
+                            <button class="text-btn" onclick="openPersonRepay(${JSON.stringify(personName).replace(/"/g, '&quot;')})" 
+                                    style="padding: 2px 8px; font-size: 0.8rem; border-color: var(--income); color: var(--income); ${isCleared ? 'display:none' : ''}">
+                                快速還款
+                            </button>
+                        </div>
+                        <div style="background: #F9F9F9; border-radius: 8px; padding: 10px; font-size: 0.85rem;">
+                            ${group.history.map(item => `
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #EEE; padding-bottom: 4px;">
+                                    <span>
+                                        <small style="color:var(--text-light)">${item.date}</small><br>
+                                        <b style="color: ${item.type === 'borrow' ? 'var(--expense)' : 'var(--income)'}">
+                                            [${item.type === 'borrow' ? '借' : '還'}]
+                                        </b> ${item.reason}
+                                    </span>
+                                    <div style="text-align: right;">
+                                        <span style="color: ${item.type === 'borrow' ? 'var(--expense)' : 'var(--income)'}">
+                                            ${item.type === 'borrow' ? '-' : '+'}$${item.amount.toLocaleString()}
+                                        </span>
+                                        <div style="margin-top: 4px;">
+                                            <i class="fas fa-pencil-alt" style="cursor:pointer; color:var(--text-light); margin-right: 10px;" 
+                                               onclick="${item.type === 'borrow' ? `openEditDebtModal(${item.originalIndex})` : `alert('請到該筆借款下修改還款紀錄')`}"></i>
+                                            <i class="fas fa-trash-alt" style="cursor:pointer; color:var(--expense);" 
+                                               onclick="${item.type === 'borrow' ? `deleteDebt(${item.originalIndex})` : `deleteRepayment(${item.originalIndex}, ${item.repayIndex})`}"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            document.getElementById('totalDebtAmount').innerText = globalTotalRemaining.toLocaleString();
+        }
+
+        window.openPersonRepay = function(personName) {
+            openGlobalRepayModal();
+            const select = document.getElementById('repayPersonSelect');
+            // 預選該債權人
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === personName) {
+                    select.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        // --- 操作函式 ---
+        window.openBudgetModal = function(type, item = null) {
+            document.getElementById('budgetModal').style.display = 'flex';
+            document.getElementById('editType').value = type;
+            document.getElementById('btnDeleteBudget').style.display = item ? 'block' : 'none';
+            
+            const repayArea = document.getElementById('budgetRepayArea');
+            const creditorList = document.getElementById('budgetCreditorList');
+            
+            if (item) {
+                document.getElementById('budgetModalTitle').innerText = '修改項目';
+                document.getElementById('editId').value = item.id;
+                document.getElementById('itemName').value = item.name;
+                document.getElementById('itemAmount').value = item.amount;
+                
+                // 檢查是否包含還款或借款
+                if ((item.name.includes('還款') && type === 'expense') || (item.name.includes('借款') && type === 'income')) {
+                    repayArea.style.display = 'block';
+                    creditorList.innerHTML = '';
+                    [...new Set(data.debts.map(d => d.person))].forEach(p => {
+                        creditorList.innerHTML += `<option value="${p}">${p}</option>`;
+                    });
+                } else {
+                    repayArea.style.display = 'none';
+                }
+            } else {
+                document.getElementById('budgetModalTitle').innerText = '新增項目';
+                document.getElementById('editId').value = '';
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemAmount').value = '';
+                repayArea.style.display = 'none';
+            }
+        }
+
+        window.saveBudgetItem = function() {
+            const type = document.getElementById('editType').value;
+            const name = document.getElementById('itemName').value;
+            const amount = document.getElementById('itemAmount').value;
+            const id = document.getElementById('editId').value;
+            const key = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            if(!name) return alert('請輸入名稱');
+            
+            if (!data.budget[key]) data.budget[key] = { income: [], expense: [] };
+            const arr = data.budget[key][type];
+            
+            if (id) {
+                const obj = arr.find(x => x.id == id);
+                if(obj) { obj.name = name; obj.amount = amount; }
+            } else {
+                arr.push({ id: Date.now(), name, amount });
+            }
+            // 處理還款/借款同步到欠款紀錄
+            const person = document.getElementById('budgetRepayCreditor').value;
+            const syncDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+            
+            if (type === 'expense' && name.includes('還款') && person) {
+                const dIdx = data.debts.findIndex(d => d.person === person);
+                if (dIdx !== -1) {
+                    if (!data.debts[dIdx].repayments) data.debts[dIdx].repayments = [];
+                    data.debts[dIdx].repayments.push({
+                        id: Date.now(), date: syncDate, reason: "月預算排程還款", amount: amount
+                    });
+                }
+            } else if (type === 'income' && name.includes('借款') && person) {
+                data.debts.push({
+                    id: Date.now(), person: person, date: syncDate, reason: "月預算排程借款", amount: amount
+                });
+            }
+            saveData(); // 儲存後交給 Firebase 自動更新畫面
+            closeModal('budgetModal');
+        }
+
+        window.deleteBudgetItem = function() { 
+             if(!confirm('確定刪除?')) return;
+            const type = document.getElementById('editType').value;
+            const id = document.getElementById('editId').value;
+            const key = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            data.budget[key][type] = data.budget[key][type].filter(x => x.id != id);
+            saveData(); 
+            closeModal('budgetModal');
+        }
+        document.getElementById('btnDeleteBudget').onclick = window.deleteBudgetItem;
+
+        window.openCalModal = function(dateStr, editItem = null, editIdx = null) {
+            document.getElementById('calendarModal').style.display = 'flex';
+            // 修改：提示是否為編輯重複原點
+            document.getElementById('calModalTitle').innerText = editItem ? (editItem.isRepeat ? '編輯重複紀錄(原點)' : '編輯紀錄') : '新增紀錄';
+            // 若為編輯，鎖定顯示原建立日期，以免日期錯亂
+            document.getElementById('selectedDate').value = editItem ? editItem.originalDate : dateStr;
+            document.getElementById('editOriginalDate').value = editItem ? editItem.originalDate : dateStr;
+            document.getElementById('editDailyId').value = editItem ? editIdx : '';
+            
+            // 載入重複設定
+            document.getElementById('calFrequency').value = editItem ? (editItem.frequency || 'none') : 'none';
+            document.getElementById('calEndDate').value = editItem ? (editItem.endDate || '') : '';
+            
+            const currentType = document.getElementById('calType').value || 'expense';
+            const initialBtn = document.querySelector(`.tab-opt[onclick*="${currentType}"]`);
+            window.setCalType(currentType, initialBtn);
+
+            const creditorList = document.getElementById('calCreditorList');
+            creditorList.innerHTML = '';
+            [...new Set(data.debts.map(d => d.person))].forEach(p => {
+                creditorList.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+            document.getElementById('calRepayCreditor').value = ''; 
+
+            if (editItem) {
+                document.getElementById('calItemAmount').value = editItem.amount || '';
+                document.getElementById('calItemNote').value = editItem.note || '';
+                const typeBtn = document.querySelector(`.tab-opt[onclick*="${editItem.type}"]`);
+                if(typeBtn) setCalType(editItem.type, typeBtn, editItem.item);
+            } else {
+                document.getElementById('calItemAmount').value = '';
+                document.getElementById('calItemNote').value = '';
+                setCalType('expense', document.querySelector('.tab-opt')); 
+            }
+            renderDailyList(dateStr);
+        }
+
+        window.setCalType = function(type, btn, editItemName = null) {
+            document.getElementById('calType').value = type;
+            document.querySelectorAll('.tab-opt').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+
+            const select = document.getElementById('calItemName');
+            select.innerHTML = '';
+            
+            let categories = [...window.defaultCategories[type]];
+            
+            const key = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            if (data.budget && data.budget[key] && data.budget[key][type]) {
+                data.budget[key][type].forEach(item => {
+                    if (!categories.includes(item.name)) categories.push(item.name);
+                });
+            }
+            
+            if (type === 'expense' && !categories.includes('還款')) categories.push('還款');
+            if (type === 'income' && !categories.includes('借款')) categories.push('借款');
+
+            if (editItemName && !categories.includes(editItemName)) {
+                categories.push(editItemName);
+            }
+
+            categories.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c; opt.text = c;
+                if (c === editItemName) opt.selected = true; 
+                select.appendChild(opt);
+            });
+
+            if (window.checkRepayDisplay) window.checkRepayDisplay();
+        }
+
+        window.checkRepayDisplay = function() {
+            const type = document.getElementById('calType').value;
+            const name = document.getElementById('calItemName').value;
+            const repayArea = document.getElementById('calRepayArea');
+            
+            if ((type === 'expense' && name.includes('還款')) || (type === 'income' && name.includes('借款'))) {
+                repayArea.style.display = 'block';
+                const sel = document.getElementById('calCreditorList');
+                sel.innerHTML = '';
+                [...new Set(data.debts.map(d => d.person))].forEach(p => {
+                    sel.innerHTML += `<option value="${p}">${p}</option>`;
+                });
+            } else {
+                repayArea.style.display = 'none';
+            }
+        }
+
+        window.addDailyRecord = function() {
+            const date = document.getElementById('selectedDate').value;
+            const type = document.getElementById('calType').value;
+            const amount = document.getElementById('calItemAmount').value;
+            const note = document.getElementById('calItemNote').value;
+            const editIdx = document.getElementById('editDailyId').value;
+            const item = document.getElementById('calItemName').value;
+            
+            // 新增：讀取重複設定
+            const frequency = document.getElementById('calFrequency').value;
+            const endDate = document.getElementById('calEndDate').value;
+
+            if(!item || !amount) {
+                alert('請確認「項目」與「金額」都有輸入！');
+                return;
+            }
+
+            if(!data.daily) data.daily = {}; 
+
+            const recordData = { id: Date.now(), type, item, amount, note, frequency, endDate };
+
+            if (editIdx !== '') {
+                const oldDate = document.getElementById('editOriginalDate').value;
+                if (data.daily[oldDate]) {
+                    if (oldDate !== date) {
+                        data.daily[oldDate].splice(editIdx, 1);
+                        if(!data.daily[date]) data.daily[date] = [];
+                        data.daily[date].push(recordData);
+                    } else {
+                        data.daily[oldDate][editIdx] = recordData;
+                    }
+                }
+            } else {
+                if(!data.daily[date]) data.daily[date] = [];
+                data.daily[date].push(recordData);
+            }
+
+            // 同步還款/借款到欠款頁面
+            const person = document.getElementById('calRepayCreditor').value;
+            if (type === 'expense' && item.includes('還款') && person) {
+                const dIdx = data.debts.findIndex(d => d.person === person);
+                if (dIdx !== -1) {
+                    if (!data.debts[dIdx].repayments) data.debts[dIdx].repayments = [];
+                    data.debts[dIdx].repayments.push({
+                        id: Date.now(), date: date, reason: "行事曆同步還款", amount: amount
+                    });
+                }
+            } else if (type === 'income' && item.includes('借款') && person) {
+                data.debts.push({
+                    id: Date.now(), person: person, date: date, reason: "行事曆同步借款", amount: amount
+                });
+            }
+
+            saveData(); 
+            
+            document.getElementById('calItemAmount').value = '';
+            document.getElementById('calItemNote').value = '';
+            document.getElementById('editDailyId').value = '';
+            document.getElementById('calModalTitle').innerText = '新增紀錄';
+            
+            setTimeout(() => renderDailyList(date), 100); 
+        }
+
+        window.renderDailyList = function(date) {
+            const list = document.getElementById('dailyRecordsList');
+            list.innerHTML = '';
+            const records = window.getRecordsForDate(date);
+            records.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'daily-item';
+                div.innerHTML = `
+                    <div style="flex:1; cursor:pointer;" onclick='openCalModal("${r.originalDate}", ${JSON.stringify(r)}, ${r.originalIdx})'>
+                        <span style="color:${r.type==='income'?'var(--income)':'var(--expense)'}; margin-right:5px;">${r.type==='income'?'收':(r.type==='repay'?'還':'支')}</span>
+                        <span>${r.isRepeat ? '<i class="fas fa-sync-alt" style="font-size:0.7rem; color:var(--primary); margin-right:4px;"></i>' : ''}${r.item} ${r.note ? `<span style="color:#aaa;font-size:0.8rem">(${r.note})</span>` : ''}</span>
+                    </div>
+                    <span style="font-weight:bold;">$${r.amount}</span>
+                    <span class="del-x" onclick="deleteDaily('${r.originalDate}', ${r.originalIdx})">&times;</span>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.deleteDaily = function(originalDate, idx) {
+            data.daily[originalDate].splice(idx, 1);
+            saveData(); 
+            setTimeout(() => {
+                const currentViewDate = document.getElementById('selectedDate').value;
+                renderDailyList(currentViewDate);
+            }, 100);
+        }
+
+        window.openDebtModal = function() {
+            document.getElementById('debtModal').style.display = 'flex';
+            document.getElementById('debtModalTitle').innerText = '新增欠款';
+            document.getElementById('editDebtIndex').value = '';
+            document.getElementById('debtPerson').value = '';
+            document.getElementById('debtDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('debtReason').value = '';
+            document.getElementById('debtAmount').value = '';
+        }
+
+        window.openEditDebtModal = function(index) {
+            const d = data.debts[index];
+            document.getElementById('debtModal').style.display = 'flex';
+            document.getElementById('debtModalTitle').innerText = '修改欠款';
+            document.getElementById('editDebtIndex').value = index;
+            document.getElementById('debtPerson').value = d.person;
+            document.getElementById('debtDate').value = d.date;
+            document.getElementById('debtReason').value = d.reason;
+            document.getElementById('debtAmount').value = d.amount;
+        }
+
+        window.saveDebt = function() {
+            const person = document.getElementById('debtPerson').value;
+            const date = document.getElementById('debtDate').value;
+            const reason = document.getElementById('debtReason').value;
+            const amount = document.getElementById('debtAmount').value;
+            const editIndex = document.getElementById('editDebtIndex').value;
+            
+            if(!person || !amount) return;
+            
+            if (editIndex !== '') {
+                // 修改
+                data.debts[editIndex].person = person;
+                data.debts[editIndex].date = date;
+                data.debts[editIndex].reason = reason;
+                data.debts[editIndex].amount = amount;
+            } else {
+                // 新增
+                data.debts.push({ id: Date.now(), person, date, reason, amount, repayments: [] });
+            }
+            saveData(); 
+            closeModal('debtModal');
+        }
+
+        window.deleteDebt = function(index) {
+            if(confirm('確定刪除此紀錄?')) {
+                data.debts.splice(index, 1);
+                saveData();
+            }
+        }
+
+        window.deleteRepayment = function(debtIndex, repayIndex) {
+            if(confirm('確定刪除這筆還款紀錄?')) {
+                data.debts[debtIndex].repayments.splice(repayIndex, 1);
+                saveData();
+            }
+        }
+
+        // --- 新增：處理全域新增還款 (從 + 號選單點擊進來) ---
+        window.openGlobalRepayModal = function() {
+            if (!data.debts || data.debts.length === 0) {
+                alert("目前沒有任何欠款紀錄！");
+                return;
+            }
+            
+            const select = document.getElementById('repayPersonSelect');
+            select.innerHTML = '';
+            
+            // 1. 先計算每個人的總欠款額
+            const totals = {};
+            data.debts.forEach(d => {
+                if (!totals[d.person]) totals[d.person] = 0;
+                let repaid = 0;
+                if (d.repayments) d.repayments.forEach(r => repaid += (Number(r.amount) || 0));
+                totals[d.person] += (Number(d.amount) || 0) - repaid;
+            });
+
+            // 2. 僅將餘額大於 0 的對象加入選單
+            let hasPendingDebt = false;
+            Object.keys(totals).forEach(person => {
+                if (totals[person] > 0) {
+                    const opt = document.createElement('option');
+                    opt.value = person;
+                    opt.text = `${person} (總欠: $${totals[person].toLocaleString()})`;
+                    select.appendChild(opt);
+                    hasPendingDebt = true;
+                }
+            });
+
+            if (!hasPendingDebt) {
+                alert("目前所有欠款皆已結清！");
+                return;
+            }
+
+            document.getElementById('repayModal').style.display = 'flex';
+            document.getElementById('repayIndex').value = 'GLOBAL_PERSON'; // 標記為按人名還款模式
+            
+            document.getElementById('repayPersonSelect').style.display = 'block';
+            document.getElementById('repayPerson').style.display = 'none';
+            
+            document.getElementById('repayDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('repayReason').value = '還款';
+            document.getElementById('repayAmount').value = ''; 
+            
+            activeInput = document.getElementById('repayAmount');
+        }
+
+        // --- 修改：從卡片點擊還款 ---
+        window.openRepayModal = function(index) {
+            const debt = data.debts[index];
+            document.getElementById('repayModal').style.display = 'flex';
+            document.getElementById('repayIndex').value = index;
+            
+            // 隱藏下拉選單，顯示唯讀輸入框
+            document.getElementById('repayPersonSelect').style.display = 'none';
+            document.getElementById('repayPerson').style.display = 'block';
+            document.getElementById('repayPerson').value = debt.person;
+            
+            document.getElementById('repayDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('repayReason').value = '還款';
+            document.getElementById('repayAmount').value = ''; 
+            
+            activeInput = document.getElementById('repayAmount');
+        }
+
+        window.confirmRepayment = function() {
+            const mode = document.getElementById('repayIndex').value;
+            let amountLeft = parseInt(document.getElementById('repayAmount').value);
+            const date = document.getElementById('repayDate').value;
+            const reason = document.getElementById('repayReason').value || '還款';
+            
+            if(!amountLeft || amountLeft <= 0) return alert('請輸入有效金額');
+
+            if (mode === 'GLOBAL_PERSON') {
+                const targetPerson = document.getElementById('repayPersonSelect').value;
+                
+                // 自動沖銷邏輯：按日期從舊到新尋找該人的借款
+                const personDebts = data.debts
+                    .map((d, i) => ({...d, idx: i}))
+                    .filter(d => d.person === targetPerson)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                for (let d of personDebts) {
+                    if (amountLeft <= 0) break;
+
+                    let alreadyRepaid = 0;
+                    if (d.repayments) d.repayments.forEach(r => alreadyRepaid += (Number(r.amount) || 0));
+                    
+                    const debtRemain = Number(d.amount) - alreadyRepaid;
+                    
+                    if (debtRemain > 0) {
+                        const payThisTurn = Math.min(amountLeft, debtRemain);
+                        if (!data.debts[d.idx].repayments) data.debts[d.idx].repayments = [];
+                        
+                        data.debts[d.idx].repayments.push({
+                            id: Date.now() + Math.random(), // 避免同時寫入 ID 重複
+                            date: date,
+                            reason: reason,
+                            amount: payThisTurn
+                        });
+                        amountLeft -= payThisTurn;
+                    }
+                }
+                
+                // 如果還完所有借款還有剩餘 (溢繳)，將剩餘金額扣在最後一筆借款上
+                if (amountLeft > 0) {
+                    const lastIdx = personDebts[personDebts.length - 1].idx;
+                    data.debts[lastIdx].repayments.push({
+                        id: Date.now(),
+                        date: date,
+                        reason: reason + "(溢繳)",
+                        amount: amountLeft
+                    });
+                }
+            } else {
+                // 原有的單筆還款模式 (從卡片點擊進來)
+                const idx = mode;
+                if (!data.debts[idx].repayments) data.debts[idx].repayments = [];
+                data.debts[idx].repayments.push({
+                    id: Date.now(),
+                    date: date,
+                    reason: reason,
+                    amount: amountLeft
+                });
+            }
+            
+            saveData(); 
+            closeModal('repayModal');
+        }
+
+        // --- 鍵盤與UI ---
+        window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; if(id !== 'repayModal') closeNumpad(); }
+
+        window.openNumpad = function(inputElement) {
+            activeInput = inputElement;
+            
+            // 判斷是否為電腦版
+            const isDesktop = window.innerWidth > 768 && !(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+            
+            if (isDesktop) {
+                activeInput.removeAttribute('readonly');
+                activeInput.focus();
+                return;
+            }
+            
+            document.getElementById('custom-numpad').style.display = 'grid';
+            
+            const modalContent = activeInput.closest('.modal-content');
+            if(modalContent) {
+                // 當鍵盤展開時，給予 modal 底部足夠的留白，避免輸入框被鍵盤擋住
+                modalContent.style.paddingBottom = '35vh'; 
+            }
+            
+            // 延遲一點點時間，讓畫面渲染後順利捲動到輸入框
+            setTimeout(() => {
+                activeInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        window.closeNumpad = function() {
+            document.getElementById('custom-numpad').style.display = 'none';
+            
+            // 恢復底部留白
+            if(activeInput) {
+                const modalContent = activeInput.closest('.modal-content');
+                if(modalContent) modalContent.style.paddingBottom = '25px';
+            }
+            activeInput = null;
+        }
+
+        window.numpadInput = function(char) {
+            if (!activeInput) return;
+            if (char === 'AC') { activeInput.value = ''; }
+            else if (char === 'DEL') { activeInput.value = activeInput.value.slice(0, -1); }
+            else if (char === '\n') { 
+                if (activeInput && activeInput.value) {
+                    try { activeInput.value = eval(activeInput.value); } catch (e) {}
+                }
+                closeNumpad(); 
+            }
+            else {
+                if (char === '.' && activeInput.value.includes('.')) return;
+                activeInput.value += char;
+            }
+            activeInput.dispatchEvent(new Event('input'));
+        }
+
+        document.querySelector('.num-confirm').onclick = function() {
+            if (activeInput && activeInput.value) {
+                try { activeInput.value = eval(activeInput.value); } catch (e) {}
+            }
+            closeNumpad();
+        };
+    </script>
+</body>
+</html>

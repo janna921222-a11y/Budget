@@ -1447,7 +1447,7 @@
             Object.keys(totals).forEach(person => {
                 if (totals[person] > 0) {
                     const opt = document.createElement('option');
-                    opt.value = person;
+                    opt.value = person; // 這裡改回存人名
                     opt.text = `${person} (總欠: $${totals[person].toLocaleString()})`;
                     select.appendChild(opt);
                     hasPendingDebt = true;
@@ -1492,64 +1492,36 @@
 
         window.confirmRepayment = function() {
             const mode = document.getElementById('repayIndex').value;
-            let amountLeft = parseInt(document.getElementById('repayAmount').value);
+            let amount = parseInt(document.getElementById('repayAmount').value);
             const date = document.getElementById('repayDate').value;
             const reason = document.getElementById('repayReason').value || '還款';
             
-            if(!amountLeft || amountLeft <= 0) return alert('請輸入有效金額');
+            if(!amount || amount <= 0) return alert('請輸入有效金額');
 
+            // 尋找要寫入還款紀錄的目標
+            let targetIdx = -1;
             if (mode === 'GLOBAL_PERSON') {
                 const targetPerson = document.getElementById('repayPersonSelect').value;
-                
-                // 自動沖銷邏輯：按日期從舊到新尋找該人的借款
-                const personDebts = data.debts
-                    .map((d, i) => ({...d, idx: i}))
-                    .filter(d => d.person === targetPerson)
-                    .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                for (let d of personDebts) {
-                    if (amountLeft <= 0) break;
-
-                    let alreadyRepaid = 0;
-                    if (d.repayments) d.repayments.forEach(r => alreadyRepaid += (Number(r.amount) || 0));
-                    
-                    const debtRemain = Number(d.amount) - alreadyRepaid;
-                    
-                    if (debtRemain > 0) {
-                        const payThisTurn = Math.min(amountLeft, debtRemain);
-                        if (!data.debts[d.idx].repayments) data.debts[d.idx].repayments = [];
-                        
-                        data.debts[d.idx].repayments.push({
-                            id: Date.now() + Math.random(), // 避免同時寫入 ID 重複
-                            date: date,
-                            reason: reason,
-                            amount: payThisTurn
-                        });
-                        amountLeft -= payThisTurn;
-                    }
-                }
-                
-                // 如果還完所有借款還有剩餘 (溢繳)，將剩餘金額扣在最後一筆借款上
-                if (amountLeft > 0) {
-                    const lastIdx = personDebts[personDebts.length - 1].idx;
-                    data.debts[lastIdx].repayments.push({
-                        id: Date.now(),
-                        date: date,
-                        reason: reason + "(溢繳)",
-                        amount: amountLeft
-                    });
-                }
+                // 找出這個人的第一筆借款紀錄，把還款「整筆」掛在它下面，這樣系統就不會拆分
+                targetIdx = data.debts.findIndex(d => d.person === targetPerson);
             } else {
-                // 原有的單筆還款模式 (從卡片點擊進來)
-                const idx = mode;
-                if (!data.debts[idx].repayments) data.debts[idx].repayments = [];
-                data.debts[idx].repayments.push({
-                    id: Date.now(),
-                    date: date,
-                    reason: reason,
-                    amount: amountLeft
-                });
+                // 從個別卡片點擊進來的
+                targetIdx = parseInt(mode);
             }
+
+            if (targetIdx === -1) return alert('找不到該債權人的借款紀錄');
+
+            if (!data.debts[targetIdx].repayments) {
+                data.debts[targetIdx].repayments = [];
+            }
+            
+            // 直接存入單一筆完整金額，絕不拆分！
+            data.debts[targetIdx].repayments.push({
+                id: Date.now(),
+                date: date,
+                reason: reason,
+                amount: amount
+            });
             
             saveData(); 
             closeModal('repayModal');

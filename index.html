@@ -402,7 +402,11 @@
                 <h3 id="calModalTitle" style="margin: 0;">日期</h3>
                 <span style="font-size: 1.5rem; color: var(--expense); cursor: pointer; font-weight: bold; padding: 0 10px;" onclick="closeModal('calendarModal')">✕</span>
             </div>
-            <input type="date" id="selectedDate" style="width: 100%; padding: 12px; margin: 8px 0 15px 0; border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA;">
+            <div style="display: flex; align-items: center; gap: 10px; margin: 8px 0 15px 0;">
+                <button class="icon-btn" onclick="changeModalDate(-1)" style="padding: 10px;"><i class="fas fa-chevron-left"></i></button>
+                <input type="date" id="selectedDate" style="flex: 1; padding: 12px; border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA; margin: 0;">
+                <button class="icon-btn" onclick="changeModalDate(1)" style="padding: 10px;"><i class="fas fa-chevron-right"></i></button>
+            </div>
             <input type="hidden" id="editDailyId">
             <input type="hidden" id="editOriginalDate">
             
@@ -1530,6 +1534,26 @@
         // --- 鍵盤與UI ---
         window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; if(id !== 'repayModal') closeNumpad(); }
 
+        window.changeModalDate = function(delta) {
+            const dateInput = document.getElementById('selectedDate');
+            if (!dateInput.value) return;
+            
+            let d = new Date(dateInput.value);
+            d.setDate(d.getDate() + delta);
+            
+            // 處理時區偏移，確保 toISOString 產生的日期與本地一致
+            const offset = d.getTimezoneOffset() * 60000; 
+            const localISOTime = (new Date(d - offset)).toISOString().split('T')[0];
+            
+            dateInput.value = localISOTime;
+            
+            // 若為新增模式，連動更新下方該日期的歷史紀錄
+            const editIdx = document.getElementById('editDailyId').value;
+            if (editIdx === '') {
+                renderDailyList(localISOTime);
+            }
+        }
+
         window.openNumpad = function(inputElement) {
             activeInput = inputElement;
             
@@ -1593,3 +1617,7 @@
     </script>
 </body>
 </html>
+
+這是原代碼
+我需要在行事曆頁面的新增紀錄這邊加上左右按鈕
+方便切換昨天明天

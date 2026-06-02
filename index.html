@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>預算 Lite</title>
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
@@ -31,8 +33,9 @@
             margin: 0; padding: 0; 
             height: 100vh; 
             height: 100dvh; 
+            width: 100vw; max-width: 100%;
             display: flex; flex-direction: column; overflow: hidden;
-            overscroll-behavior-y: none; /* 新增：防止手機瀏覽器下拉觸發網頁重新整理 */
+            overscroll-behavior-y: none; /* 防止手機瀏覽器下拉觸發網頁重新整理 */
         }
 
        /* Header */
@@ -50,7 +53,7 @@
         #monthPicker { border: none; background: transparent; font-size: 1rem; color: var(--text-main); font-weight: bold; width: 135px; }
 
         /* Main Content */
-        main { flex: 1; overflow-y: auto; padding: 15px 12px; padding-bottom: 80px; position: relative; } /* 縮小左右 padding 至 12px */
+        main { flex: 1; overflow-y: auto; overflow-x: hidden; width: 100%; padding: 15px 12px; padding-bottom: 80px; position: relative; }
         .page { display: none; animation: fadeIn 0.3s ease; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -71,6 +74,11 @@
         /* Lists */
         .category-section h3 { font-size: 1rem; margin-bottom: 8px; color: var(--text-light); }
         .budget-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .edit-mode-item { background: var(--card-bg); padding: 8px 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border: 1px solid #F0F0F0; margin-bottom: 8px; gap: 10px; }
+        .edit-controls { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; padding: 0 5px; border-right: 1px solid #EEE; }
+        .edit-controls i { cursor: pointer; color: var(--text-light); padding: 2px; }
+        .edit-controls i:active { color: var(--primary); transform: scale(1.2); }
+        .edit-delete { color: var(--expense); cursor: pointer; padding: 10px; font-size: 1.1rem; }
         .budget-item {
             background: var(--card-bg); padding: 12px 10px; border-radius: 10px;
             display: flex; justify-content: space-between; align-items: center;
@@ -136,14 +144,34 @@
             padding-top: 8vh; 
         }
         .modal-content {
-            background: #fff; width: 85%; max-width: 450px; /* 寬度限制在白框 */
+            background: #fff; width: 90%; max-width: 450px; 
             padding: 20px;
             border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             max-height: 85vh; overflow-y: auto; 
+            overscroll-behavior: contain; /* 新增：防止手機版背景亂動 */
         }
+        /* --- 改成這樣 --- */
         .modal input, .modal select {
-            width: 100%; padding: 12px; margin: 8px 0 15px 0;
+            width: 100%; padding: 0 12px; margin: 6px 0 15px 0;
+            height: 48px; box-sizing: border-box;
             border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA;
+            transition: all 0.2s ease;
+            -webkit-appearance: none;
+            appearance: none; /* 強制清除瀏覽器預設樣式，讓輸入框與下拉選單大小完全一致 */
+        }
+        /* 針對下拉選單補回右側箭頭 (因為 appearance: none 會吃掉原生箭頭) */
+        .modal select {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C8A85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 32px;
+        }
+        .modal input:focus, .modal select:focus {
+            background: #FFF; 
+            border-color: var(--primary); 
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(212, 197, 169, 0.2);
         }
         .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
         .modal-actions button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
@@ -175,10 +203,11 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
             display: flex; justify-content: center; align-items: center;
         }
-        .num-btn:active { background: #EEE; transform: scale(0.95); }
-        .num-op { color: var(--primary); background: #FAF8F2; }
-        .num-confirm { background: var(--text-main); color: #FFF; }
-        .num-del { color: var(--expense); }
+        .num-btn:active { background: #E8E8E8; transform: scale(0.95); }
+        .num-op { color: var(--text-main); background: #F0EBE1; font-weight: 900; }
+        .num-confirm { background: var(--text-main); color: #FFF; font-size: 1.5rem; }
+        .num-confirm:active { background: #4A4946; }
+        .num-del { color: var(--expense); background: #FFF5F5; }
 
         /* 條列式收支 (金額直顯) */
         .day-list {
@@ -298,7 +327,7 @@
 
     <header class="app-header">
         <div class="logo-area" onclick="handleLogout()" style="cursor: pointer;" title="點擊登出">
-            <img src="icon.png" alt="Logo" class="app-icon" onerror="this.style.display='none'">
+            <img src="icon.png" alt="Logo" class="app-icon">
             <h1>預算規劃 <i class="fas fa-sign-out-alt" style="font-size:0.8rem; color:var(--text-light); margin-left: 4px;"></i></h1>
         </div>
         <div class="date-controls">
@@ -330,15 +359,19 @@
             </div>
 
             <div class="category-section">
-                <h3><i class="fas fa-coins"></i> 固定收入</h3>
+                <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fas fa-coins"></i> 固定收入</span>
+                    <i class="fas fa-cog" style="cursor:pointer; color:var(--text-light); padding: 5px;" onclick="window.toggleBudgetEdit('income')"></i>
+                </h3>
                 <div id="incomeList" class="budget-list"></div>
-                <button class="add-item-btn" onclick="openBudgetModal('income')">+ 新增收入項目</button>
             </div>
 
             <div class="category-section">
-                <h3><i class="fas fa-receipt"></i> 固定支出</h3>
+                <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fas fa-receipt"></i> 固定支出</span>
+                    <i class="fas fa-cog" style="cursor:pointer; color:var(--text-light); padding: 5px;" onclick="window.toggleBudgetEdit('expense')"></i>
+                </h3>
                 <div id="expenseList" class="budget-list"></div>
-                <button class="add-item-btn" onclick="openBudgetModal('expense')">+ 新增支出項目</button>
             </div>
         </section>
 
@@ -397,58 +430,79 @@
     </div>
 
     <div id="calendarModal" class="modal">
-        <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 id="calModalTitle" style="margin: 0;">日期</h3>
-                <span style="font-size: 1.5rem; color: var(--expense); cursor: pointer; font-weight: bold; padding: 0 10px;" onclick="closeModal('calendarModal')">✕</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px; margin: 8px 0 15px 0;">
-                <button class="icon-btn" onclick="changeModalDate(-1)" style="padding: 10px;"><i class="fas fa-chevron-left"></i></button>
-                <input type="date" id="selectedDate" style="flex: 1; padding: 12px; border: 1px solid #EEE; border-radius: 8px; font-size: 1rem; background: #FAFAFA; margin: 0;">
-                <button class="icon-btn" onclick="changeModalDate(1)" style="padding: 10px;"><i class="fas fa-chevron-right"></i></button>
-            </div>
-            <input type="hidden" id="editDailyId">
-            <input type="hidden" id="editOriginalDate">
-            
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1;">
-                    <label style="font-size: 0.9rem; color: var(--text-light);">重複週期</label>
-                    <select id="calFrequency">
-                        <option value="none">不重複</option>
-                        <option value="monthly">每月重複</option>
-                        <option value="weekly">每週重複</option>
-                    </select>
-                </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 0.9rem; color: var(--text-light);">結束於 (選填)</label>
-                    <input type="date" id="calEndDate">
-                </div>
-            </div>
-            <div class="tab-switch">
-                <button class="tab-opt active" onclick="setCalType('expense', this)">支出</button>
-                <button class="tab-opt" onclick="setCalType('income', this)">收入</button>
-            </div>
-            <input type="hidden" id="calType" value="expense">
-            <div id="calItemArea">
-                <label>項目</label>
-                <select id="calItemName" onchange="window.checkRepayDisplay()"></select>
-            </div>
-            <div id="calRepayArea" style="display:none;">
-                <label>債權人</label>
-                <input type="text" id="calRepayCreditor" list="calCreditorList" placeholder="選擇或輸入債權人...">
-                <datalist id="calCreditorList"></datalist>
+        <div class="modal-content" style="height: 70vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;">
+                <h3 id="calModalTitle" style="margin: 0; color: var(--text-main); font-size: 1.3rem;">日期紀錄</h3>
+                <span style="font-size: 1.5rem; color: var(--text-light); cursor: pointer; font-weight: bold; padding: 0 10px;" onclick="closeModal('calendarModal')">✕</span>
             </div>
 
-            <label>金額</label>
-            <input type="text" id="calItemAmount" class="numpad-target" placeholder="點擊輸入金額" readonly onclick="openNumpad(this)">
-            
-            <label>備註</label>
-            <input type="text" id="calItemNote" placeholder="選填備註...">
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal('calendarModal')">取消</button>
-                <button class="btn-save" onclick="addDailyRecord()">新增</button>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #FDFBF7; border: 1px solid #EBE6DC; border-radius: 16px; padding: 6px; margin-bottom: 15px; flex-shrink: 0;">
+                <button class="icon-btn" onclick="changeModalDate(-1)" style="padding: 10px 16px; border-radius: 12px; background: #FFF; box-shadow: 0 2px 6px rgba(93,92,88,0.05);"><i class="fas fa-chevron-left"></i></button>
+                
+                <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px;">
+                    <input type="date" id="selectedDate" onchange="updateDayOfWeek(); if(document.getElementById('calListArea').style.display !== 'none') renderDailyList(this.value);" style="width: 140px; margin: 0; border: none; background: transparent; text-align: center; font-size: 1.2rem; font-weight: 900; color: var(--text-main); outline: none; cursor: pointer; height: auto; padding: 0;">
+                    <span id="dayOfWeekDisplay" style="font-size: 0.9rem; color: var(--primary); font-weight: bold;"></span>
+                </div>
+                
+                <button class="icon-btn" onclick="changeModalDate(1)" style="padding: 10px 16px; border-radius: 12px; background: #FFF; box-shadow: 0 2px 6px rgba(93,92,88,0.05);"><i class="fas fa-chevron-right"></i></button>
             </div>
-            <div class="daily-records-list" id="dailyRecordsList" style="margin-top:15px; max-height:150px; overflow-y:auto;"></div>
+
+            <div id="calListArea" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <div id="dailyRecordsList" style="flex: 1; overflow-y: auto; margin-bottom: 15px;"></div>
+                <button class="add-item-btn" onclick="showNewRecordForm()" style="background: var(--text-main); color: #fff; border: none; padding: 14px; font-weight: bold; border-radius: 12px; font-size: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); flex-shrink: 0;">+ 新增當日紀錄</button>
+            </div>
+
+            <div id="calFormArea" style="display: none; flex: 1; overflow-y: auto; padding-right: 4px;">
+                <input type="hidden" id="editDailyId">
+                <input type="hidden" id="editOriginalDate">
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.85rem; color: var(--text-light); font-weight: bold;">重複週期</label>
+                        <select id="calFrequency">
+                            <option value="none">不重複</option>
+                            <option value="monthly">每月重複</option>
+                            <option value="weekly">每週重複</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.85rem; color: var(--text-light); font-weight: bold;">結束於 (選填)</label>
+                        <input type="date" id="calEndDate">
+                    </div>
+                </div>
+
+                <div class="tab-switch" style="padding: 4px; border-radius: 12px; margin-bottom: 15px;">
+                    <button class="tab-opt active" onclick="setCalType('expense', this)" style="font-weight: bold; padding: 10px; border-radius: 10px;">支出</button>
+                    <button class="tab-opt" onclick="setCalType('income', this)" style="font-weight: bold; padding: 10px; border-radius: 10px;">收入</button>
+                </div>
+                <input type="hidden" id="calType" value="expense">
+
+                <div id="calItemArea">
+                    <label style="font-size: 0.85rem; color: var(--text-light); font-weight: bold;">項目名稱</label>
+                    <select id="calItemName" onchange="window.checkRepayDisplay()"></select>
+                </div>
+
+                <div id="calRepayArea" style="display:none;">
+                    <label style="font-size: 0.85rem; color: var(--text-light); font-weight: bold;">債權人</label>
+                    <input type="text" id="calRepayCreditor" list="calCreditorList" placeholder="選擇或輸入債權人...">
+                    <datalist id="calCreditorList"></datalist>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.85rem; color: var(--text-light); font-weight: bold;">金額</label>
+                    <input type="text" id="calItemAmount" class="numpad-target" placeholder="點擊輸入金額 ($)" readonly onclick="openNumpad(this)" style="font-weight: 900; font-size: 1.2rem; color: var(--text-main);">
+                </div>
+                
+                <div>
+                    <label style="font-size: 0.85rem; color: var(--text-light); font-weight: bold;">備註細節</label>
+                    <input type="text" id="calItemNote" placeholder="選填備註...">
+                </div>
+
+                <div class="modal-actions" style="margin-top: 5px;">
+                    <button class="btn-cancel" onclick="hideRecordForm()" style="padding: 14px; font-size: 1rem; border-radius: 12px;">返回</button>
+                    <button class="btn-save" onclick="addDailyRecord()" style="padding: 14px; font-size: 1rem; border-radius: 12px;">儲存紀錄</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -507,6 +561,16 @@
                 <button class="btn-cancel" onclick="closeModal('repayModal')">取消</button>
                 <button class="btn-save" onclick="confirmRepayment()">確認還款</button>
             </div>
+        </div>
+    </div>
+
+    <div id="deleteConfirmModal" class="modal" style="z-index: 200;">
+        <div class="modal-content" style="text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--text-main);">刪除範圍</h3>
+            <p style="color: var(--text-light); font-size: 0.95rem; margin-bottom: 25px;">請問要將此刪除套用到「往後的月份」，還是僅限「本月」？</p>
+            <button id="btnDeleteFuture" style="width: 100%; padding: 15px; margin-bottom: 12px; border: none; border-radius: 12px; background: var(--expense); color: #fff; font-size: 1.1rem; font-weight: bold; cursor: pointer;">往後</button>
+            <button id="btnDeleteCurrent" style="width: 100%; padding: 15px; margin-bottom: 15px; border: none; border-radius: 12px; background: var(--text-main); color: #fff; font-size: 1.1rem; font-weight: bold; cursor: pointer;">本月</button>
+            <button id="btnDeleteCancel" style="width: 100%; padding: 12px; border: none; border-radius: 12px; background: #EEE; color: var(--text-light); font-size: 1rem; font-weight: bold; cursor: pointer;">取消操作</button>
         </div>
     </div>
 
@@ -804,12 +868,61 @@
         }
 
         // --- 月預算邏輯 ---
+        window.isEditMode = { income: false, expense: false };
+        window.initCustomCategories = function() {
+            if (!data.customCategories) {
+                data.customCategories = {
+                    income: [...window.defaultCategories.income],
+                    expense: [...window.defaultCategories.expense]
+                };
+            }
+        };
+        window.toggleBudgetEdit = function(type) {
+            window.isEditMode[type] = !window.isEditMode[type];
+            renderMonthlyBudget();
+        };
+        window.moveBudget = function(type, index, direction) {
+            const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            const arr = data.budget[currentKey][type];
+            if (index + direction < 0 || index + direction >= arr.length) return;
+            const temp = arr[index];
+            arr[index] = arr[index + direction];
+            arr[index + direction] = temp;
+
+            window.initCustomCategories();
+            let newOrder = arr.map(x => x.name);
+            data.customCategories[type].forEach(n => { if(!newOrder.includes(n)) newOrder.push(n); });
+            data.customCategories[type] = newOrder;
+
+            saveData();
+            renderMonthlyBudget();
+        };
+        window.deleteBudgetInEdit = async function(type, id, itemName) {
+            if(!confirm(`確定要刪除「${itemName}」嗎？`)) return;
+            const applyFuture = await window.showScopeConfirm(false);
+            if (applyFuture === null) return; // 使用者點擊取消按鈕，中止操作
+            const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            data.budget[currentKey][type] = data.budget[currentKey][type].filter(x => x.id != id);
+            if (applyFuture) {
+                window.initCustomCategories();
+                data.customCategories[type] = data.customCategories[type].filter(n => n !== itemName);
+                Object.keys(data.budget).forEach(key => {
+                    if (key > currentKey && data.budget[key][type]) {
+                        data.budget[key][type] = data.budget[key][type].filter(x => x.name !== itemName);
+                    }
+                });
+            }
+            saveData();
+            renderMonthlyBudget();
+        };
+
         window.renderMonthlyBudget = function() {
             const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            window.initCustomCategories();
             if (!data.budget[currentKey]) {
                 data.budget[currentKey] = {
-                    income: window.defaultCategories.income.map((n, i) => ({ id: Date.now()+i, name: n, amount: 0 })),
-                    expense: window.defaultCategories.expense.map((n, i) => ({ id: Date.now()+100+i, name: n, amount: 0 }))
+                    income: data.customCategories.income.map((n, i) => ({ id: Date.now()+i, name: n, amount: 0 })),
+                    expense: data.customCategories.expense.map((n, i) => ({ id: Date.now()+100+i, name: n, amount: 0 }))
                 };
             }
             const monthData = data.budget[currentKey];
@@ -859,34 +972,64 @@
                 const container = document.getElementById(containerId);
                 container.innerHTML = '';
                 
-                let itemsToShow = new Map();
-                
-                // 先把「固定項目清單」加進來 (預設為0)
-                arr.forEach(item => {
-                    itemsToShow.set(item.name, { id: item.id, name: item.name, amount: 0 });
-                });
-                
-                // 再疊加「行事曆實際金額」，若有未建檔的臨時項目也會動態顯示
-                if (itemTotals[type]) {
-                    Object.keys(itemTotals[type]).forEach(itemName => {
-                        if (itemsToShow.has(itemName)) {
-                            itemsToShow.get(itemName).amount = itemTotals[type][itemName];
-                        } else {
-                            itemsToShow.set(itemName, { id: '', name: itemName, amount: itemTotals[type][itemName] });
-                        }
+                if (window.isEditMode[type]) {
+                    arr.forEach((item, index) => {
+                        const div = document.createElement('div');
+                        div.className = 'edit-mode-item';
+                        div.innerHTML = `
+                            <div class="edit-controls">
+                                <i class="fas fa-chevron-up" onclick="window.moveBudget('${type}', ${index}, -1)"></i>
+                                <i class="fas fa-chevron-down" onclick="window.moveBudget('${type}', ${index}, 1)"></i>
+                            </div>
+                            <div style="flex:1;" onclick="openBudgetModal('${type}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                <div style="font-weight:bold; font-size:1.05rem;">${item.name}</div>
+                                <div style="color:var(--text-light); font-size:0.85rem;">$${item.amount.toLocaleString()}</div>
+                            </div>
+                            <i class="fas fa-trash-alt edit-delete" onclick="window.deleteBudgetInEdit('${type}', ${item.id}, '${item.name}')"></i>
+                        `;
+                        container.appendChild(div);
+                    });
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'add-item-btn';
+                    addBtn.innerHTML = `+ 新增${type==='income'?'收入':'支出'}項目`;
+                    addBtn.onclick = () => openBudgetModal(type);
+                    container.appendChild(addBtn);
+
+                    const doneBtn = document.createElement('button');
+                    doneBtn.className = 'text-btn';
+                    doneBtn.style.width = '100%';
+                    doneBtn.style.marginTop = '10px';
+                    doneBtn.style.background = 'var(--text-main)';
+                    doneBtn.style.color = '#fff';
+                    doneBtn.style.padding = '12px';
+                    doneBtn.style.fontSize = '1rem';
+                    doneBtn.innerHTML = '完成編輯';
+                    doneBtn.onclick = () => window.toggleBudgetEdit(type);
+                    container.appendChild(doneBtn);
+                } else {
+                    let itemsToShow = new Map();
+                    arr.forEach(item => {
+                        itemsToShow.set(item.name, { id: item.id, name: item.name, amount: 0 });
+                    });
+                    
+                    if (itemTotals[type]) {
+                        Object.keys(itemTotals[type]).forEach(itemName => {
+                            if (itemsToShow.has(itemName)) {
+                                itemsToShow.get(itemName).amount = itemTotals[type][itemName];
+                            } else {
+                                itemsToShow.set(itemName, { id: '', name: itemName, amount: itemTotals[type][itemName] });
+                            }
+                        });
+                    }
+                    
+                    Array.from(itemsToShow.values()).forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'budget-item';
+                        div.innerHTML = `<span>${item.name}</span><span style="font-weight:bold;">$${item.amount.toLocaleString()}</span>`;
+                        if (item.id) div.onclick = () => openBudgetModal(type, item);
+                        container.appendChild(div);
                     });
                 }
-                
-                // 渲染出所有項目
-                Array.from(itemsToShow.values()).forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'budget-item';
-                    div.innerHTML = `<span>${item.name}</span><span style="font-weight:bold;">$${item.amount.toLocaleString()}</span>`;
-                    
-                    // 只有在固定清單中的項目才能點擊編輯
-                    if (item.id) div.onclick = () => openBudgetModal(type, item);
-                    container.appendChild(div);
-                });
             };
             
             if(monthData.income) renderList(monthData.income, 'incomeList', 'income');
@@ -1141,24 +1284,32 @@
             }
         }
 
-        window.saveBudgetItem = function() {
+        window.saveBudgetItem = async function() {
             const type = document.getElementById('editType').value;
             const name = document.getElementById('itemName').value;
             const amount = document.getElementById('itemAmount').value;
             const id = document.getElementById('editId').value;
-            const key = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
             if(!name) return alert('請輸入名稱');
             
-            if (!data.budget[key]) data.budget[key] = { income: [], expense: [] };
-            const arr = data.budget[key][type];
+            let isNew = !id;
+            let applyFuture = false;
             
-            if (id) {
+            if (isNew) {
+                applyFuture = await window.showScopeConfirm(true, name);
+                if (applyFuture === null) return; 
+            }
+            
+            if (!data.budget[currentKey]) data.budget[currentKey] = { income: [], expense: [] };
+            const arr = data.budget[currentKey][type];
+            
+            if (!isNew) {
                 const obj = arr.find(x => x.id == id);
                 if(obj) { obj.name = name; obj.amount = amount; }
             } else {
                 arr.push({ id: Date.now(), name, amount });
             }
-            // 處理還款/借款同步到欠款紀錄
+            
             const person = document.getElementById('budgetRepayCreditor').value;
             const syncDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
             
@@ -1175,18 +1326,49 @@
                     id: Date.now(), person: person, date: syncDate, reason: "月預算排程借款", amount: amount
                 });
             }
-            saveData(); // 儲存後交給 Firebase 自動更新畫面
-            closeModal('budgetModal');
-        }
 
-        window.deleteBudgetItem = function() { 
-             if(!confirm('確定刪除?')) return;
-            const type = document.getElementById('editType').value;
-            const id = document.getElementById('editId').value;
-            const key = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-            data.budget[key][type] = data.budget[key][type].filter(x => x.id != id);
+            if (isNew && applyFuture) {
+                window.initCustomCategories();
+                if (!data.customCategories[type].includes(name)) {
+                    data.customCategories[type].push(name);
+                }
+                Object.keys(data.budget).forEach(key => {
+                    if (key > currentKey && data.budget[key][type]) {
+                        if (!data.budget[key][type].find(x => x.name === name)) {
+                            data.budget[key][type].push({ id: Date.now() + Math.random(), name, amount: 0 });
+                        }
+                    }
+                });
+            }
+
             saveData(); 
             closeModal('budgetModal');
+            renderMonthlyBudget();
+        }
+
+        window.deleteBudgetItem = async function() { 
+             if(!confirm('確定刪除?')) return;
+             const applyFuture = await window.showScopeConfirm(false);
+             if (applyFuture === null) return; // 使用者點擊取消按鈕，中止操作
+            const type = document.getElementById('editType').value;
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('itemName').value;
+            const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            
+            data.budget[currentKey][type] = data.budget[currentKey][type].filter(x => x.id != id);
+            
+            if (applyFuture) {
+                window.initCustomCategories();
+                data.customCategories[type] = data.customCategories[type].filter(n => n !== name);
+                Object.keys(data.budget).forEach(key => {
+                    if (key > currentKey && data.budget[key][type]) {
+                        data.budget[key][type] = data.budget[key][type].filter(x => x.name !== name);
+                    }
+                });
+            }
+            saveData(); 
+            closeModal('budgetModal');
+            renderMonthlyBudget();
         }
         document.getElementById('btnDeleteBudget').onclick = window.deleteBudgetItem;
 
@@ -1198,6 +1380,8 @@
             document.getElementById('selectedDate').value = editItem ? editItem.originalDate : dateStr;
             document.getElementById('editOriginalDate').value = editItem ? editItem.originalDate : dateStr;
             document.getElementById('editDailyId').value = editItem ? editIdx : '';
+            
+            updateDayOfWeek(); // 新增：初始化星期顯示
             
             // 載入重複設定
             document.getElementById('calFrequency').value = editItem ? (editItem.frequency || 'none') : 'none';
@@ -1219,10 +1403,17 @@
                 document.getElementById('calItemNote').value = editItem.note || '';
                 const typeBtn = document.querySelector(`.tab-opt[onclick*="${editItem.type}"]`);
                 if(typeBtn) setCalType(editItem.type, typeBtn, editItem.item);
+                
+                document.getElementById('calListArea').style.display = 'none';
+                document.getElementById('calFormArea').style.display = 'block';
             } else {
+                document.getElementById('calModalTitle').innerText = '日期紀錄';
                 document.getElementById('calItemAmount').value = '';
                 document.getElementById('calItemNote').value = '';
                 setCalType('expense', document.querySelector('.tab-opt')); 
+                
+                document.getElementById('calListArea').style.display = 'flex';
+                document.getElementById('calFormArea').style.display = 'none';
             }
             renderDailyList(dateStr);
         }
@@ -1331,16 +1522,19 @@
                 });
             }
 
+            /* --- 改成這樣 --- */
             saveData(); 
             
             document.getElementById('calItemAmount').value = '';
             document.getElementById('calItemNote').value = '';
             document.getElementById('editDailyId').value = '';
-            document.getElementById('calModalTitle').innerText = '新增紀錄';
             
+            // 儲存後切換回列表模式
+            hideRecordForm();
             setTimeout(() => renderDailyList(date), 100); 
         }
 
+        /* --- 改成這樣 --- */
         window.renderDailyList = function(date) {
             const list = document.getElementById('dailyRecordsList');
             list.innerHTML = '';
@@ -1348,13 +1542,22 @@
             records.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'daily-item';
+                div.style.alignItems = 'center';
                 div.innerHTML = `
-                    <div style="flex:1; cursor:pointer;" onclick='openCalModal("${r.originalDate}", ${JSON.stringify(r)}, ${r.originalIdx})'>
-                        <span style="color:${r.type==='income'?'var(--income)':'var(--expense)'}; margin-right:5px;">${r.type==='income'?'收':(r.type==='repay'?'還':'支')}</span>
-                        <span>${r.isRepeat ? '<i class="fas fa-sync-alt" style="font-size:0.7rem; color:var(--primary); margin-right:4px;"></i>' : ''}${r.item} ${r.note ? `<span style="color:#aaa;font-size:0.8rem">(${r.note})</span>` : ''}</span>
+                    <div style="flex:1; display:flex; align-items:center;">
+                        <span style="color:${r.type==='income'?'var(--income)':'var(--expense)'}; margin-right:8px; font-weight:bold;">${r.type==='income'?'收':(r.type==='repay'?'還':'支')}</span>
+                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            ${r.isRepeat ? '<i class="fas fa-sync-alt" style="font-size:0.7rem; color:var(--primary); margin-right:4px;"></i>' : ''}${r.item} 
+                            ${r.note ? `<span style="color:#aaa;font-size:0.8rem">(${r.note})</span>` : ''}
+                        </span>
+                        <span style="font-weight:900; margin-right: 15px; color:var(--text-main);">
+                            $${parseInt(r.amount).toLocaleString()}
+                        </span>
                     </div>
-                    <span style="font-weight:bold;">$${r.amount}</span>
-                    <span class="del-x" onclick="deleteDaily('${r.originalDate}', ${r.originalIdx})">&times;</span>
+                    <div style="display:flex; gap:12px; align-items:center; border-left: 1px solid #EEE; padding-left: 10px;">
+                        <i class="fas fa-pencil-alt" style="cursor:pointer; color:var(--text-light); font-size:1.1rem;" onclick='openCalModal("${r.originalDate}", ${JSON.stringify(r).replace(/'/g, "&#39;")}, ${r.originalIdx})'></i>
+                        <i class="fas fa-trash-alt" style="cursor:pointer; color:var(--expense); font-size:1.1rem;" onclick="deleteDaily('${r.originalDate}', ${r.originalIdx})"></i>
+                    </div>
                 `;
                 list.appendChild(div);
             });
@@ -1425,6 +1628,23 @@
                 data.debts[debtIndex].repayments.splice(repayIndex, 1);
                 saveData();
             }
+        }
+
+        window.showNewRecordForm = function() {
+            document.getElementById('calListArea').style.display = 'none';
+            document.getElementById('calFormArea').style.display = 'block';
+            document.getElementById('calModalTitle').innerText = '新增紀錄';
+            
+            document.getElementById('editDailyId').value = '';
+            document.getElementById('calItemAmount').value = '';
+            document.getElementById('calItemNote').value = '';
+            setCalType(document.getElementById('calType').value || 'expense', document.querySelector('.tab-opt')); 
+        }
+
+        window.hideRecordForm = function() {
+            document.getElementById('calFormArea').style.display = 'none';
+            document.getElementById('calListArea').style.display = 'flex';
+            document.getElementById('calModalTitle').innerText = '日期紀錄';
         }
 
         // --- 新增：處理全域新增還款 (從 + 號選單點擊進來) ---
@@ -1534,6 +1754,50 @@
         // --- 鍵盤與UI ---
         window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; if(id !== 'repayModal') closeNumpad(); }
 
+        window.showScopeConfirm = function(isAdd, itemName = '') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('deleteConfirmModal');
+                const title = modal.querySelector('h3');
+                const desc = modal.querySelector('p');
+                const cancelBtn = document.getElementById('btnDeleteCancel');
+
+                if (isAdd) {
+                    title.innerText = '新增範圍';
+                    desc.innerText = `請問要將新增的「${itemName}」套用到「往後的月份」，還是僅限「本月」？`;
+                    cancelBtn.style.display = 'block';
+                } else {
+                    title.innerText = '刪除範圍';
+                    desc.innerText = '請問要將此刪除套用到「往後的月份」，還是僅限「本月」？';
+                    cancelBtn.style.display = 'block';
+                }
+
+                modal.style.display = 'flex';
+                
+                document.getElementById('btnDeleteFuture').onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(true); // 套用往後
+                };
+                document.getElementById('btnDeleteCurrent').onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(false); // 僅限本月
+                };
+                cancelBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(null); // 取消操作
+                };
+            });
+        }
+
+        window.updateDayOfWeek = function() {
+            const dateInput = document.getElementById('selectedDate');
+            const display = document.getElementById('dayOfWeekDisplay');
+            if (dateInput && dateInput.value && display) {
+                const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                const d = new Date(dateInput.value);
+                display.innerText = `(${days[d.getDay()]})`;
+            }
+        }
+
         window.changeModalDate = function(delta) {
             const dateInput = document.getElementById('selectedDate');
             if (!dateInput.value) return;
@@ -1541,15 +1805,14 @@
             let d = new Date(dateInput.value);
             d.setDate(d.getDate() + delta);
             
-            // 處理時區偏移，確保 toISOString 產生的日期與本地一致
             const offset = d.getTimezoneOffset() * 60000; 
             const localISOTime = (new Date(d - offset)).toISOString().split('T')[0];
             
             dateInput.value = localISOTime;
+            updateDayOfWeek(); 
             
-            // 若為新增模式，連動更新下方該日期的歷史紀錄
-            const editIdx = document.getElementById('editDailyId').value;
-            if (editIdx === '') {
+            // 切換日期時，如果正在看列表，就刷新列表；如果正在新增/編輯，則保持在編輯模式讓使用者能直接改期
+            if(document.getElementById('calListArea').style.display !== 'none') {
                 renderDailyList(localISOTime);
             }
         }
@@ -1591,33 +1854,47 @@
             activeInput = null;
         }
 
+        window.calculateNumpad = function() {
+            if (activeInput && activeInput.value) {
+                try { 
+                    // 使用 Function 取代 eval 更安全，並加入 Math.round 避免浮點數誤差 (如 0.1+0.2)
+                    let result = new Function('return ' + activeInput.value)(); 
+                    if (!isFinite(result)) throw new Error('Invalid');
+                    activeInput.value = Math.round(result * 100) / 100; 
+                } catch (e) {
+                    alert('算式有誤，請重新確認');
+                    activeInput.value = '';
+                }
+            }
+        }
+
         window.numpadInput = function(char) {
             if (!activeInput) return;
+            
             if (char === 'AC') { activeInput.value = ''; }
             else if (char === 'DEL') { activeInput.value = activeInput.value.slice(0, -1); }
             else if (char === '\n') { 
-                if (activeInput && activeInput.value) {
-                    try { activeInput.value = eval(activeInput.value); } catch (e) {}
-                }
+                calculateNumpad();
                 closeNumpad(); 
             }
             else {
-                if (char === '.' && activeInput.value.includes('.')) return;
+                // 防呆：防止連續輸入兩個運算符號 (例如 5++ 或 5+*2)
+                const lastChar = activeInput.value.slice(-1);
+                const isOp = ['+', '-', '*', '/'].includes(char);
+                if (isOp && ['+', '-', '*', '/', '.'].includes(lastChar)) return; 
+                
+                // 防呆：防止同一個數字內有多個小數點
+                if (char === '.' && activeInput.value.split(/[\+\-\*\/]/).pop().includes('.')) return;
+                
                 activeInput.value += char;
             }
             activeInput.dispatchEvent(new Event('input'));
         }
 
         document.querySelector('.num-confirm').onclick = function() {
-            if (activeInput && activeInput.value) {
-                try { activeInput.value = eval(activeInput.value); } catch (e) {}
-            }
+            calculateNumpad();
             closeNumpad();
         };
     </script>
 </body>
 </html>
-
-這是原代碼
-我需要在行事曆頁面的新增紀錄這邊加上左右按鈕
-方便切換昨天明天
